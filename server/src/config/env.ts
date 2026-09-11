@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import * as dotenv from 'dotenv';
+import path from 'path';
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') });
 
 const envSchema = z.object({
-  PORT: z.coerce.number(),
+  PORT: z.coerce.number().default(5000),
   DATABASE_URL: z.string(),
   REDIS_URL: z.string(),
   JWT_SECRET: z.string(),

@@ -12,6 +12,9 @@ const allowedOrigins = env.FRONTEND_URLS.split(',');
 
 const app = express();
 
+// Trust reverse proxy (e.g., Render, Heroku, Cloudflare)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({
   origin: allowedOrigins,
