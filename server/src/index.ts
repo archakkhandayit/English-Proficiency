@@ -8,11 +8,13 @@ import { adminRouter } from './routes/admin.routes.js';
 import { eventsRouter } from './routes/events.routes.js';
 import { startEvaluationWorker } from './workers/evaluation.worker.js';
 
+const allowedOrigins = env.FRONTEND_URLS.split(',');
+
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(cookieParser());

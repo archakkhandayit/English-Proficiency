@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (dto: LoginDto): Promise<AuthUser> => {
+    console.log("api: ", import.meta.env.VITE_API_URL)
     const res = await api.post<{ user: AuthUser }>('/auth/login', dto);
     setUser(res.data.user);
     return res.data.user;

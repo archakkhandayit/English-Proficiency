@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { AlertCircle } from 'lucide-react';
 
 export const CandidateLogin: React.FC = () => {
-  const [email, setEmail] = useState('rahul.sharma@example.com');
-  const [password, setPassword] = useState('Password@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +33,6 @@ export const CandidateLogin: React.FC = () => {
     }
   };
 
-  const handleDemoFill = () => {
-    setEmail('rahul.sharma@example.com');
-    setPassword('Password@123');
-  };
 
   return (
     <div className="bg-surface-canvas min-h-screen flex flex-col font-body-default text-text-primary antialiased">
@@ -50,10 +46,10 @@ export const CandidateLogin: React.FC = () => {
       <main className="flex-grow flex flex-col items-center justify-center px-4 py-12">
         {/* Login Card */}
         <div className="w-full max-w-[440px] bg-surface-card border border-border-rule p-8 rounded-lg shadow-sm">
-          <div className="mb-6">
+          <div className="mb-4">
             <p className="font-label-default text-label-default uppercase text-text-muted mb-2 tracking-wide">CANDIDATE SIGN IN</p>
             <h1 className="font-headline-lg text-headline-lg text-text-primary mb-2">Welcome back</h1>
-            <p className="font-body-compact text-body-compact text-text-muted">Enter your credentials to access your scheduled assessments and performance scorecards.</p>
+            {/* <p className="font-body-compact text-body-compact text-text-muted">Enter your credentials.</p> */}
           </div>
 
           {error && (
@@ -86,13 +82,6 @@ export const CandidateLogin: React.FC = () => {
                 <label className="block font-label-prominent text-label-prominent text-text-primary" htmlFor="password">
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={handleDemoFill}
-                  className="font-label-default text-label-default text-primary hover:underline"
-                >
-                  Quick Demo Fill
-                </button>
               </div>
               <div className="relative">
                 <input

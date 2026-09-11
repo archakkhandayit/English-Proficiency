@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { AlertCircle } from 'lucide-react';
 
 export const AdminLogin: React.FC = () => {
-  const [email, setEmail] = useState('admin@tcs.com');
-  const [password, setPassword] = useState('Password@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [keepSession, setKeepSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +33,6 @@ export const AdminLogin: React.FC = () => {
     }
   };
 
-  const handleDemoFill = () => {
-    setEmail('admin@tcs.com');
-    setPassword('Password@123');
-  };
-
   return (
     <div className="bg-surface-canvas text-text-primary min-h-screen flex flex-col font-body-default antialiased">
       {/* Header */}
@@ -56,7 +51,7 @@ export const AdminLogin: React.FC = () => {
           <h1 className="text-2xl font-semibold text-text-primary mb-5 font-headline-lg">Admin Sign In</h1>
           
           <div className="bg-surface-canvas border border-border-rule p-3.5 mb-6 text-xs text-slate-600 rounded">
-            Notice: Access is strictly restricted to authorized TCS assessment evaluators and administrators. Self-registration is disabled; accounts are centrally provisioned.
+            Notice: Self-registration is disabled; accounts are centrally provisioned.
           </div>
 
           {error && (
@@ -74,7 +69,7 @@ export const AdminLogin: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@tcs.com"
+                placeholder="admin@mail.com"
                 className="w-full bg-surface-card border border-border-rule rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-colors text-text-primary"
               />
             </div>
@@ -82,13 +77,6 @@ export const AdminLogin: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-sm font-medium text-text-primary">Password</label>
-                <button
-                  type="button"
-                  onClick={handleDemoFill}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Quick Demo Fill
-                </button>
               </div>
               <div className="relative">
                 <input
@@ -97,7 +85,7 @@ export const AdminLogin: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-surface-card border border-border-rule rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-colors text-text-primary font-mono tracking-widest"
+                  className="w-full bg-surface-card border border-border-rule rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-colors text-text-primary  tracking-widest"
                 />
                 <button
                   type="button"

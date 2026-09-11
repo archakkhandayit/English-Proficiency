@@ -11,6 +11,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional().default(''),
   GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  FRONTEND_URLS: z.string()
 });
 
 export const env = envSchema.parse(process.env);
