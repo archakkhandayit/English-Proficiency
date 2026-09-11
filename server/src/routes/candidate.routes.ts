@@ -70,10 +70,65 @@ candidateRouter.get('/exams', async (req, res) => {
       })
     );
 
-    res.status(200).json(examListWithAttempts);
+    // Return only exams available to take or resume (unattempted or in_progress)
+    const availableExams = examListWithAttempts.filter(
+      (e) => !e.attempt || e.attempt.status === 'in_progress'
+    );
+
+    res.status(200).json(availableExams);
   } catch (err: any) {
     console.error('Error fetching candidate exams:', err);
     res.status(500).json({ error: 'Failed to fetch exams.' });
+  }
+});
+
+// GET /api/candidate/attempts - List all attempts made by candidate with exam info and scorecard
+candidateRouter.get('/attempts', async (req, res) => {
+  try {
+    const candidateId = req.user!.userId;
+
+    const candidateAttempts = await db
+      .select({
+        id: schema.attempts.id,
+        examId: schema.attempts.examId,
+        status: schema.attempts.status,
+        currentSection: schema.attempts.currentSection,
+        startedAt: schema.attempts.startedAt,
+        submittedAt: schema.attempts.submittedAt,
+        evaluatedAt: schema.attempts.evaluatedAt,
+        errorMessage: schema.attempts.errorMessage,
+        examTitle: schema.exams.title,
+        examDescription: schema.exams.description,
+        examVersion: schema.exams.version,
+      })
+      .from(schema.attempts)
+      .innerJoin(schema.exams, eq(schema.attempts.examId, schema.exams.id))
+      .where(eq(schema.attempts.candidateId, candidateId))
+      .orderBy(desc(schema.attempts.startedAt));
+
+    const enrichedAttempts = await Promise.all(
+      candidateAttempts.map(async (att) => {
+        let scorecard = null;
+        if (att.status === 'evaluated') {
+          const [sc] = await db
+            .select()
+            .from(schema.attemptScorecards)
+            .where(eq(schema.attemptScorecards.attemptId, att.id))
+            .limit(1);
+          scorecard = sc || null;
+        }
+
+        return {
+          ...att,
+          scorecard,
+        };
+      })
+    );
+
+    res.status(200).json(enrichedAttempts);
+  } catch (err: any) {
+    console.error('Error fetching candidate attempts:', err);
+    res.status(500).json({ error: 'Failed to fetch candidate attempts.' });
   }
 });
 

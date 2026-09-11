@@ -189,7 +189,7 @@ export async function buildEvaluatedAttemptPayload(attemptId: string): Promise<E
     evaluated_at: attempt.evaluatedAt ? attempt.evaluatedAt.toISOString() : undefined,
     time_spent_min: timeSpentMin,
     time_spent_sec: timeSpentSec,
-    model_version: 'gemini-2.5-flash',
+    model_version: 'gemini-3.5-flash-lite',
     summary: {
       composite_score: compositeScore,
       proficiency_band: proficiencyBand,

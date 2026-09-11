@@ -601,3 +601,73 @@ adminRouter.post('/attempts/:id/evaluate', async (req, res) => {
     res.status(500).json({ error: 'Failed to re-queue evaluation.' });
   }
 });
+
+// DELETE /api/admin/attempts/:id - Delete an attempt and all its responses, evaluations, and scorecard
+adminRouter.delete('/attempts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [attempt] = await db
+      .select()
+      .from(schema.attempts)
+      .where(eq(schema.attempts.id, id))
+      .limit(1);
+
+    if (!attempt) {
+      res.status(404).json({ error: 'Attempt not found.' });
+      return;
+    }
+
+    const examId = attempt.examId;
+
+    await db.transaction(async (tx) => {
+      // 1. Delete scorecard
+      await tx
+        .delete(schema.attemptScorecards)
+        .where(eq(schema.attemptScorecards.attemptId, id));
+
+      // 2. Find responses
+      const attResponses = await tx
+        .select({ id: schema.responses.id })
+        .from(schema.responses)
+        .where(eq(schema.responses.attemptId, id));
+
+      const responseIds = attResponses.map((r) => r.id);
+
+      if (responseIds.length > 0) {
+        // Delete evaluations
+        await tx
+          .delete(schema.evaluations)
+          .where(inArray(schema.evaluations.responseId, responseIds));
+
+        // Delete responses
+        await tx
+          .delete(schema.responses)
+          .where(eq(schema.responses.attemptId, id));
+      }
+
+      // 3. Delete attempt
+      await tx
+        .delete(schema.attempts)
+        .where(eq(schema.attempts.id, id));
+
+      // 4. If zero attempts remain for this exam, unlock the exam
+      const [remaining] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.examId, examId));
+
+      if (Number(remaining?.count || 0) === 0) {
+        await tx
+          .update(schema.exams)
+          .set({ locked: false })
+          .where(eq(schema.exams.id, examId));
+      }
+    });
+
+    res.status(200).json({ message: 'Candidate attempt and associated records deleted successfully.' });
+  } catch (err: any) {
+    console.error('Error deleting attempt:', err);
+    res.status(500).json({ error: 'Failed to delete attempt.' });
+  }
+});

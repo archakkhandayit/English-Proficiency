@@ -8,7 +8,7 @@ import * as schema from './schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DB_JSON_PATH = path.resolve(__dirname, '../../../db.json');
+const DB_JSON_PATH = path.resolve(__dirname, '../../../Assests/db.json');
 
 function toUuid(input: string): string {
   if (!input) return input;
