@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, desc, asc, sql } from 'drizzle-orm';
+import { eq, desc, asc, sql, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
 import * as schema from '../db/schema.js';
@@ -385,7 +385,7 @@ adminRouter.patch('/exams/:id/status', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/exams/:id - Delete draft exam
+// DELETE /api/admin/exams/:id - Delete exam with full cascade (attempts, responses, evaluations, scorecards, sections)
 adminRouter.delete('/exams/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -401,26 +401,58 @@ adminRouter.delete('/exams/:id', async (req, res) => {
       return;
     }
 
-    // Check if attempts exist
-    const [attemptCount] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(schema.attempts)
-      .where(eq(schema.attempts.examId, id));
+    // Atomic cascade deletion of all attempt hierarchies and exam content
+    await db.transaction(async (tx) => {
+      // 1. Fetch all attempt IDs for this exam
+      const examAttempts = await tx
+        .select({ id: schema.attempts.id })
+        .from(schema.attempts)
+        .where(eq(schema.attempts.examId, id));
 
-    if (Number(attemptCount?.count || 0) > 0) {
-      res.status(400).json({
-        error: 'Cannot delete an exam that has recorded candidate attempts. Archive it instead.',
-      });
-      return;
-    }
+      const attemptIds = examAttempts.map((a) => a.id);
 
-    // Delete child sections first
-    await db.delete(schema.section1Questions).where(eq(schema.section1Questions.examId, id));
-    await db.delete(schema.section2Passages).where(eq(schema.section2Passages.examId, id));
-    await db.delete(schema.section3Prompts).where(eq(schema.section3Prompts.examId, id));
-    await db.delete(schema.exams).where(eq(schema.exams.id, id));
+      if (attemptIds.length > 0) {
+        // Delete scorecards
+        await tx
+          .delete(schema.attemptScorecards)
+          .where(inArray(schema.attemptScorecards.attemptId, attemptIds));
 
-    res.status(200).json({ message: 'Exam deleted successfully.' });
+        // Find all responses for these attempts
+        const attResponses = await tx
+          .select({ id: schema.responses.id })
+          .from(schema.responses)
+          .where(inArray(schema.responses.attemptId, attemptIds));
+
+        const responseIds = attResponses.map((r) => r.id);
+
+        if (responseIds.length > 0) {
+          // Delete evaluations
+          await tx
+            .delete(schema.evaluations)
+            .where(inArray(schema.evaluations.responseId, responseIds));
+
+          // Delete responses
+          await tx
+            .delete(schema.responses)
+            .where(inArray(schema.responses.attemptId, attemptIds));
+        }
+
+        // Delete attempts
+        await tx
+          .delete(schema.attempts)
+          .where(eq(schema.attempts.examId, id));
+      }
+
+      // 2. Delete child sections
+      await tx.delete(schema.section1Questions).where(eq(schema.section1Questions.examId, id));
+      await tx.delete(schema.section2Passages).where(eq(schema.section2Passages.examId, id));
+      await tx.delete(schema.section3Prompts).where(eq(schema.section3Prompts.examId, id));
+
+      // 3. Delete the exam itself
+      await tx.delete(schema.exams).where(eq(schema.exams.id, id));
+    });
+
+    res.status(200).json({ message: 'Exam and all associated cascades deleted successfully.' });
   } catch (err: any) {
     console.error('Error deleting exam:', err);
     res.status(500).json({ error: 'Failed to delete exam.' });

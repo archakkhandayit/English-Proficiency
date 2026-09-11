@@ -68,11 +68,16 @@ export const ExamsList: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this draft exam?')) return;
-    setActionLoading(id);
+  const handleDelete = async (exam: AdminExamItem) => {
+    let confirmMsg = `Are you sure you want to delete "${exam.title}"?`;
+    if (exam.attempt_count > 0) {
+      confirmMsg = `WARNING: This assessment has ${exam.attempt_count} recorded candidate attempt(s).\n\nDeleting this assessment will permanently erase all candidate attempts, responses, AI evaluations, and scorecards.\n\nAre you sure you want to permanently delete "${exam.title}" and ALL its associated data?`;
+    }
+    if (!window.confirm(confirmMsg)) return;
+
+    setActionLoading(exam.id);
     try {
-      await api.delete(`/admin/exams/${id}`);
+      await api.delete(`/admin/exams/${exam.id}`);
       await fetchExams();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete exam.');
@@ -262,7 +267,7 @@ export const ExamsList: React.FC = () => {
                             Duplicate
                           </button>
                           <button
-                            onClick={() => handleDelete(exam.id)}
+                            onClick={() => handleDelete(exam)}
                             disabled={actionLoading === exam.id}
                             className="text-timer-critical hover:text-[#991B1B] font-label-prominent text-label-prominent transition-colors duration-100 cursor-pointer disabled:opacity-50"
                           >
@@ -293,6 +298,13 @@ export const ExamsList: React.FC = () => {
                           >
                             Archive
                           </button>
+                          <button
+                            onClick={() => handleDelete(exam)}
+                            disabled={actionLoading === exam.id}
+                            className="text-timer-critical hover:text-[#991B1B] font-label-prominent text-label-prominent transition-colors duration-100 cursor-pointer disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
                           <Link
                             to={`/admin/attempts?examId=${exam.id}`}
                             className="text-text-muted hover:text-text-primary font-label-prominent text-label-prominent transition-colors duration-100"
@@ -305,11 +317,32 @@ export const ExamsList: React.FC = () => {
                       {exam.status === 'archived' && (
                         <>
                           <button
+                            onClick={() => handleStatusChange(exam.id, 'active')}
+                            disabled={actionLoading === exam.id}
+                            className="text-primary-container font-label-prominent text-label-prominent font-medium hover:text-[#172554] transition-colors duration-100 cursor-pointer disabled:opacity-50"
+                          >
+                            Make Active
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(exam.id, 'draft')}
+                            disabled={actionLoading === exam.id}
+                            className="text-text-muted hover:text-text-primary font-label-prominent text-label-prominent transition-colors duration-100 cursor-pointer disabled:opacity-50"
+                          >
+                            Revert to Draft
+                          </button>
+                          <button
                             onClick={() => handleDuplicate(exam.id)}
                             disabled={actionLoading === exam.id}
                             className="text-text-muted hover:text-text-primary font-label-prominent text-label-prominent transition-colors duration-100 cursor-pointer disabled:opacity-50"
                           >
                             Duplicate
+                          </button>
+                          <button
+                            onClick={() => handleDelete(exam)}
+                            disabled={actionLoading === exam.id}
+                            className="text-timer-critical hover:text-[#991B1B] font-label-prominent text-label-prominent transition-colors duration-100 cursor-pointer disabled:opacity-50"
+                          >
+                            Delete
                           </button>
                           <Link
                             to={`/admin/attempts?examId=${exam.id}`}
