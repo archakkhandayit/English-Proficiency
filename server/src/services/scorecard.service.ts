@@ -182,7 +182,7 @@ export async function buildEvaluatedAttemptPayload(attemptId: string): Promise<E
     attempt_id: attempt.id,
     candidate_name: user?.name || 'Candidate',
     candidate_email: user?.email,
-    exam_title: exam?.title || 'TCS NQT English Assessment 2026 Batch A (v1)',
+    exam_title: exam?.title || 'Aptivo English Assessment 2026 Batch A (v1)',
     status: attempt.status,
     started_at: attempt.startedAt ? attempt.startedAt.toISOString() : undefined,
     submitted_at: attempt.submittedAt ? attempt.submittedAt.toISOString() : undefined,

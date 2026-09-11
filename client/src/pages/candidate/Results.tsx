@@ -67,7 +67,7 @@ export const Results: React.FC = () => {
         <header className="bg-card border-b border-borderRule sticky top-0 z-40">
           <div className="max-w-[1040px] mx-auto px-6 h-16 flex justify-between items-center">
             <div className="font-semibold text-primaryText text-base">
-              TCS NQT — English Assessment
+              Aptivo — English Assessment
             </div>
             <div className="text-sm font-medium text-primaryText">
               {user?.name || user?.email || 'Rahul Sharma'}
@@ -78,7 +78,7 @@ export const Results: React.FC = () => {
           <div className="text-mutedText text-sm">Loading certified scorecard...</div>
         </main>
         <footer className="bg-card border-t border-borderRule py-6 text-center text-xs text-mutedText mt-auto">
-          TCS Assessment Platform · Certified Automated AI Grading System
+          Aptivo Assessment Platform · Certified Automated AI Grading System
         </footer>
       </div>
     );
@@ -90,7 +90,7 @@ export const Results: React.FC = () => {
         <header className="bg-card border-b border-borderRule sticky top-0 z-40">
           <div className="max-w-[1040px] mx-auto px-6 h-16 flex justify-between items-center">
             <div className="font-semibold text-primaryText text-base">
-              TCS NQT — English Assessment
+              Aptivo — English Assessment
             </div>
             <div className="text-sm font-medium text-primaryText">
               {user?.name || user?.email || 'Rahul Sharma'}
@@ -115,7 +115,7 @@ export const Results: React.FC = () => {
           </div>
         </main>
         <footer className="bg-card border-t border-borderRule py-6 text-center text-xs text-mutedText mt-auto">
-          TCS Assessment Platform · Certified Automated AI Grading System
+          Aptivo Assessment Platform · Certified Automated AI Grading System
         </footer>
       </div>
     );
@@ -129,7 +129,7 @@ export const Results: React.FC = () => {
       <header className="bg-card border-b border-borderRule sticky top-0 z-40 print:hidden">
         <div className="max-w-[1040px] mx-auto px-6 h-16 flex justify-between items-center">
           <div className="font-semibold text-primaryText text-base">
-            TCS NQT — English Assessment
+            Aptivo — English Assessment
           </div>
           <div className="text-sm font-medium text-primaryText">
             {candidateDisplayName}
@@ -170,7 +170,7 @@ export const Results: React.FC = () => {
 
       {/* Clean Footer from candidate-scorecard.html */}
       <footer className="bg-card border-t border-borderRule py-6 text-center text-xs text-mutedText mt-auto print:hidden">
-        TCS Assessment Platform · Certified Automated AI Grading System
+        Aptivo Assessment Platform · Certified Automated AI Grading System
       </footer>
     </div>
   );

@@ -147,7 +147,7 @@ export const ExamInstructions: React.FC = () => {
       {/* Shared Component: Footer */}
       <footer className="bg-surface-canvas border-t border-border-rule flex justify-center items-center py-unit-4 px-unit-6 w-full max-w-candidate-max-width mx-auto shrink-0 mt-auto">
         <div className="font-label-default text-label-default text-text-muted text-center">
-          TCS Assessment Platform
+          Aptivo Assessment Platform
         </div>
       </footer>
     </div>

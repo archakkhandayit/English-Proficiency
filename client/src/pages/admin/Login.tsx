@@ -37,7 +37,7 @@ export const AdminLogin: React.FC = () => {
     <div className="bg-surface-canvas text-text-primary min-h-screen flex flex-col font-body-default antialiased">
       {/* Header */}
       <header className="h-16 bg-surface-card border-b border-border-rule flex items-center justify-between px-6 shrink-0">
-        <div className="font-semibold text-base text-text-primary font-headline-md">TCS Assessment Admin</div>
+        <div className="font-semibold text-base text-text-primary font-headline-md">Aptivo Assessment Admin</div>
         <Link to="/candidate/login" className="text-xs text-text-muted hover:text-text-primary transition-colors flex items-center gap-1">
           <span className="material-symbols-outlined text-[14px]">arrow_back</span>
           Candidate Portal
@@ -132,7 +132,7 @@ export const AdminLogin: React.FC = () => {
 
       {/* Footer */}
       <footer className="h-16 bg-surface-card border-t border-border-rule flex items-center justify-center shrink-0">
-        <span className="text-xs text-text-muted">TCS Assessment Platform</span>
+        <span className="text-xs text-text-muted">Aptivo Assessment Platform</span>
       </footer>
     </div>
   );

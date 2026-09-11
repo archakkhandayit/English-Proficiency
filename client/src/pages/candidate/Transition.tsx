@@ -126,7 +126,7 @@ export const Transition: React.FC = () => {
 
       <footer className="w-full bg-surface-card border-t border-border-rule py-unit-4">
         <div className="max-w-candidate-max-width mx-auto px-unit-6 text-center text-text-muted font-body-default text-body-default">
-          TCS Assessment Platform
+          Aptivo Assessment Platform
         </div>
       </footer>
     </div>

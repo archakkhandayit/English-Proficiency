@@ -314,7 +314,7 @@ export const ExamEditor: React.FC = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={locked}
-                placeholder="e.g. TCS NQT English 2026 Batch A"
+                placeholder="e.g. Aptivo English 2026 Batch A"
               />
             </div>
 

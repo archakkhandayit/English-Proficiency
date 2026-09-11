@@ -214,7 +214,7 @@ export const Section2Recall: React.FC = () => {
 
       <footer className="w-full bg-surface-canvas py-unit-8 border-t border-border-rule select-none">
         <div className="max-w-[680px] mx-auto px-unit-4 flex justify-end">
-          <span className="text-label-default text-text-muted">TCS Assessment Platform</span>
+          <span className="text-label-default text-text-muted">Aptivo Assessment Platform</span>
         </div>
       </footer>
     </div>

@@ -1,5 +1,5 @@
 {
-  "name": "nqt-server",
+  "name": "aptivo-server",
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {

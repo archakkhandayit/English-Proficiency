@@ -157,7 +157,7 @@ export const Scorecard: React.FC<ScorecardProps> = ({
   </div>
 
   <h1 className="text-2xl font-semibold text-primaryText" id="examTitle">
-    Assessment Results: {examTitle || scorecard.exam_title || 'TCS NQT English Assessment'}
+    Assessment Results: {examTitle || scorecard.exam_title || 'Aptivo English Assessment'}
   </h1>
 
   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-mutedText font-mono pt-1">

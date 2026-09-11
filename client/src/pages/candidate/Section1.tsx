@@ -291,7 +291,7 @@ export const Section1: React.FC = () => {
 
       <footer className="w-full bg-[#FFFFFF] border-t border-[#E2E8F0] py-unit-4 select-none">
         <div className="max-w-candidate-max-width mx-auto px-unit-6 flex items-center justify-center font-body-default text-body-default text-[#64748B]">
-          <span>TCS Assessment Platform</span>
+          <span>Aptivo Assessment Platform</span>
         </div>
       </footer>
     </div>

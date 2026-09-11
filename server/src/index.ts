@@ -48,7 +48,7 @@ startEvaluationWorker();
 // Start HTTP server
 app.listen(env.PORT, () => {
   console.log(`=======================================================`);
-  console.log(`🚀 TCS NQT English Assessment Server`);
+  console.log(`🚀 Aptivo Assessment Server`);
   console.log(`📡 Listening on http://localhost:${env.PORT}`);
   console.log(`⚙️  Environment: ${env.NODE_ENV}`);
   console.log(`=======================================================`);

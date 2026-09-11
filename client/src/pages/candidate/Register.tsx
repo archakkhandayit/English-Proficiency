@@ -55,7 +55,7 @@ export const CandidateRegister: React.FC = () => {
       {/* TopAppBar (Suppressed navigation, transactional header) */}
       <header className="bg-white border-b border-border-rule flex justify-between items-center w-full px-unit-6 h-unit-16 shrink-0">
         <div className="text-text-primary font-semibold text-base font-headline-md tracking-tight">
-          TCS Assessment Platform
+          Aptivo Assessment Platform
         </div>
         <div className="text-text-muted text-xs font-label-default">
           Candidate Registration
@@ -199,7 +199,7 @@ export const CandidateRegister: React.FC = () => {
       {/* Pinned Footer */}
       <footer className="bg-white border-t border-border-rule py-unit-4 w-full shrink-0 flex justify-center items-center">
         <p className="text-text-muted text-xs font-body-compact text-center w-full">
-          TCS Assessment Platform
+          Aptivo Assessment Platform
         </p>
       </footer>
     </div>

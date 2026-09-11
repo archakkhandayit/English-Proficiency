@@ -128,7 +128,7 @@ async function evaluateSection1(
   }
 
   if (needsAi.length > 0) {
-    const prompt = `You are a TCS NQT English exam evaluator.
+    const prompt = `You are an Aptivo English exam evaluator.
 Grade the candidate's proposed word for each blank.
 Accept the word if and only if it is a grammatically correct, semantically valid synonym in formal business English.
 Reject if it has a grammatical form mismatch, semantic contradiction, or spelling failure.

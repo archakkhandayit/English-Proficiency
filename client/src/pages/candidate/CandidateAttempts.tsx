@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { CandidateNavbar } from '../../components/CandidateNavbar';
@@ -198,10 +198,10 @@ export const CandidateAttempts: React.FC = () => {
       <footer className="bg-surface-canvas border-t border-border-rule mt-auto">
         <div className="flex justify-between items-center py-unit-4 px-unit-6 w-full max-w-candidate-max-width mx-auto">
           <div className="font-label-default text-label-default text-text-muted">
-            Â© 2024 TCS iON. All rights reserved.
+            © 2026 Aptivo. All rights reserved.
           </div>
           <div className="font-label-default text-label-default text-text-muted text-center flex-grow">
-            TCS Assessment Platform
+            Aptivo Assessment Platform
           </div>
           <div className="flex gap-4 font-label-default text-label-default">
             <span className="text-text-muted hover:text-text-primary transition-colors cursor-pointer">Help Desk</span>

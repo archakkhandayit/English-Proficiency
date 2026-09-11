@@ -12,7 +12,7 @@ export const EvaluationWait: React.FC = () => {
   const navigate = useNavigate();
 
   const [attemptId, setAttemptId] = useState<string | null>(null);
-  const [examTitle, setExamTitle] = useState('TCS NQT English — Practice Assessment 2026');
+  const [examTitle, setExamTitle] = useState('Aptivo English — Practice Assessment 2026');
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
@@ -201,7 +201,7 @@ export const EvaluationWait: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-unit-4 px-admin-gutter border-t border-border-rule flex justify-center items-center mt-auto bg-surface-canvas text-text-muted font-body-compact text-body-compact">
-        TCS Assessment Platform
+        Aptivo Assessment Platform
       </footer>
     </div>
   );

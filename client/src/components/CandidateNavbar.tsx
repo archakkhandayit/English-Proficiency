@@ -25,7 +25,7 @@ export const CandidateNavbar: React.FC<CandidateNavbarProps> = ({
         {/* Assessment title and optional nav links */}
         <div className="flex items-center space-x-unit-6 h-full min-w-0">
           <span className="font-headline-md text-headline-md font-semibold text-text-primary truncate">
-            TCS NQT — English Assessment
+            Aptivo — English Assessment
           </span>
           {sectionTitle && (
             <span className="hidden md:inline-block text-xs font-medium text-text-muted border-l border-border-rule pl-unit-3">

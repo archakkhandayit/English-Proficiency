@@ -14,7 +14,7 @@ export const AdminNavbar: React.FC = () => {
       <div className="max-w-candidate-max-width mx-auto w-full flex items-center justify-between h-full px-6">
         <div className="flex items-center space-x-unit-6 h-full">
           <span className="font-headline-md text-headline-md font-semibold text-text-primary">
-            TCS Assessment Admin
+            Aptivo Assessment Admin
           </span>
           <nav className="flex h-full space-x-unit-2 ml-unit-8">
             <Link
@@ -41,7 +41,7 @@ export const AdminNavbar: React.FC = () => {
         </div>
         <div className="flex items-center space-x-unit-4">
           <span className="text-text-primary font-body-compact text-body-compact">
-            {user?.email || 'admin@tcs.com'}
+            {user?.email || 'admin@aptivo.com'}
           </span>
           <button
             onClick={() => logout()}
@@ -59,7 +59,7 @@ export const AdminFooter: React.FC = () => {
   return (
     <footer className="w-full bg-surface-card border-t border-border-rule py-6 px-6 mt-auto flex justify-center items-center">
       <span className="font-body-compact text-body-compact text-text-muted">
-        TCS Assessment Platform
+        Aptivo Assessment Platform
       </span>
     </footer>
   );

@@ -121,7 +121,7 @@ export const Section2Read: React.FC = () => {
 
       <footer className="w-full bg-surface-card border-t border-border-rule py-unit-4">
         <div className="max-w-[680px] mx-auto px-unit-4 flex justify-center">
-          <span className="font-label-default text-text-muted">TCS Assessment Platform</span>
+          <span className="font-label-default text-text-muted">Aptivo Assessment Platform</span>
         </div>
       </footer>
     </div>

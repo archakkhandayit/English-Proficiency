@@ -229,7 +229,7 @@ export const Section3: React.FC = () => {
 
       <footer className="fixed bottom-0 left-0 right-0 w-full bg-surface-card border-t border-border-rule py-unit-4 z-40 select-none">
         <div className="max-w-[680px] mx-auto px-unit-4 flex items-center justify-start font-label-default text-label-default text-text-muted">
-          <div>TCS Assessment Platform</div>
+          <div>Aptivo Assessment Platform</div>
         </div>
       </footer>
 
@@ -242,7 +242,7 @@ export const Section3: React.FC = () => {
               <h3 className="font-semibold text-base text-text-primary">Confirm Final Submission</h3>
             </div>
             <p className="text-xs text-text-muted leading-relaxed">
-              Are you sure you wish to conclude your TCS NQT English Assessment? Once submitted, your responses will be locked and routed directly to the AI grading engine.
+              Are you sure you wish to conclude your Aptivo English Assessment? Once submitted, your responses will be locked and routed directly to the AI grading engine.
             </p>
             <div className="bg-surface-canvas border border-border-rule p-3 rounded text-xs space-y-1">
               <div>• Section 1 (Sentence Completion): Completed</div>
