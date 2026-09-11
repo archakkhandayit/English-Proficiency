@@ -15,7 +15,7 @@ export const CandidateNavbar: React.FC<CandidateNavbarProps> = ({
   const { user, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 left-0 right-0 w-full z-50 bg-surface-card border-b border-border-rule">
+    <header className="sticky top-0 left-0 right-0 w-full z-50 bg-surface-card border-b border-border-rule select-none">
       <div className="h-16 w-full max-w-candidate-max-width mx-auto px-unit-6 flex items-center justify-between">
         {/* Assessment title and optional section */}
         <div className="flex items-center gap-unit-4 min-w-0">

@@ -69,9 +69,9 @@ export const CandidateDashboard: React.FC = () => {
     // In-progress: route to appropriate active section
     if (currentSection === 1) {
       navigate(`/candidate/exams/${exam.id}/section1`);
-    } else if (currentSection === 2) {
-      navigate(`/candidate/exams/${exam.id}/section2/read?passage=1`);
-    } else if (currentSection === 3) {
+    } else if (currentSection === 2 || currentSection === 3) {
+      navigate(`/candidate/exams/${exam.id}/section2`);
+    } else if (currentSection === 4) {
       navigate(`/candidate/exams/${exam.id}/section3`);
     } else {
       navigate(`/candidate/exams/${exam.id}/section1`);

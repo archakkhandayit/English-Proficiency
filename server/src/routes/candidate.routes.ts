@@ -198,6 +198,11 @@ candidateRouter.get('/attempts/:id/section1', async (req, res) => {
       return;
     }
 
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam has ended. Questions are no longer accessible.' });
+      return;
+    }
+
     // Fetch Section 1 questions OMITTING acceptable_answers
     const questions = await db
       .select({
@@ -232,8 +237,103 @@ candidateRouter.get('/attempts/:id/section1', async (req, res) => {
   }
 });
 
+// PATCH /api/candidate/attempts/:id/section - Record section progression
+candidateRouter.patch('/attempts/:id/section', async (req, res) => {
+  try {
+    const { id: attemptId } = req.params;
+    const candidateId = req.user!.userId;
+    const { currentSection } = req.body;
+
+    const [attempt] = await db
+      .select()
+      .from(schema.attempts)
+      .where(
+        and(
+          eq(schema.attempts.id, attemptId),
+          eq(schema.attempts.candidateId, candidateId)
+        )
+      )
+      .limit(1);
+
+    if (!attempt) {
+      res.status(404).json({ error: 'Attempt not found' });
+      return;
+    }
+
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam is no longer in progress.' });
+      return;
+    }
+
+    const newSec = Math.max(attempt.currentSection, Number(currentSection) || 1);
+    await db
+      .update(schema.attempts)
+      .set({ currentSection: newSec })
+      .where(eq(schema.attempts.id, attemptId));
+
+    res.status(200).json({ currentSection: newSec });
+  } catch (err: any) {
+    console.error('Error updating attempt section:', err);
+    res.status(500).json({ error: 'Failed to update section.' });
+  }
+});
+
+// GET /api/candidate/attempts/:id/section2 - Batched Section 2 (All passages & stimuli)
+candidateRouter.get('/attempts/:id/section2', async (req, res) => {
+  try {
+    const { id: attemptId } = req.params;
+    const candidateId = req.user!.userId;
+
+    const [attempt] = await db
+      .select()
+      .from(schema.attempts)
+      .where(
+        and(
+          eq(schema.attempts.id, attemptId),
+          eq(schema.attempts.candidateId, candidateId)
+        )
+      )
+      .limit(1);
+
+    if (!attempt) {
+      res.status(404).json({ error: 'Attempt not found' });
+      return;
+    }
+
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam has ended. Questions are no longer accessible.' });
+      return;
+    }
+
+    // Security: Section 2 is only accessible once Section 1 is completed (currentSection >= 2)
+    if (attempt.currentSection < 2) {
+      res.status(403).json({ error: 'Section 1 must be completed before accessing Section 2.' });
+      return;
+    }
+
+    const passages = await db
+      .select({
+        id: schema.section2Passages.id,
+        order_index: schema.section2Passages.orderIndex,
+        passage_text: schema.section2Passages.passageText,
+      })
+      .from(schema.section2Passages)
+      .where(eq(schema.section2Passages.examId, attempt.examId))
+      .orderBy(asc(schema.section2Passages.orderIndex));
+
+    res.status(200).json({
+      total_passages: passages.length,
+      passages,
+    });
+  } catch (err: any) {
+    console.error('Error fetching S2 batch:', err);
+    res.status(500).json({ error: 'Failed to load Section 2.' });
+  }
+});
+
 // GET /api/candidate/attempts/:id/section2/passages-meta - Total count of passages
 candidateRouter.get('/attempts/:id/section2/passages-meta', async (req, res) => {
+
   try {
     const { id: attemptId } = req.params;
     const [attempt] = await db
@@ -246,6 +346,12 @@ candidateRouter.get('/attempts/:id/section2/passages-meta', async (req, res) => 
       res.status(404).json({ error: 'Attempt not found' });
       return;
     }
+
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam has ended. Questions are no longer accessible.' });
+      return;
+    }
+
 
     const passages = await db
       .select({
@@ -280,6 +386,11 @@ candidateRouter.get('/attempts/:id/section2/read/:passageOrder', async (req, res
 
     if (!attempt) {
       res.status(404).json({ error: 'Attempt not found' });
+      return;
+    }
+
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam has ended. Questions are no longer accessible.' });
       return;
     }
 
@@ -324,6 +435,11 @@ candidateRouter.get('/attempts/:id/section2/recall/:passageOrder', async (req, r
 
     if (!attempt) {
       res.status(404).json({ error: 'Attempt not found' });
+      return;
+    }
+
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam has ended. Questions are no longer accessible.' });
       return;
     }
 
@@ -384,6 +500,12 @@ candidateRouter.get('/attempts/:id/section3', async (req, res) => {
       res.status(404).json({ error: 'Attempt not found' });
       return;
     }
+
+    if (attempt.status !== 'in_progress') {
+      res.status(403).json({ error: 'Exam has ended. Questions are no longer accessible.' });
+      return;
+    }
+
 
     const [prompt] = await db
       .select({

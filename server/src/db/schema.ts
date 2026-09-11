@@ -1,4 +1,4 @@
-﻿import { pgTable, uuid, text, boolean, integer, smallint, numeric, timestamp, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, integer, smallint, numeric, timestamp, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import type { ScorecardMatrices } from '@nqt/shared';
 
@@ -98,7 +98,7 @@ export const section3Prompts = pgTable('section3_prompts', {
 export const attempts = pgTable('attempts', {
   id: uuid('id').defaultRandom().primaryKey(),
   candidateId: uuid('candidate_id').notNull().references(() => users.id),
-  examId: uuid('exam_id').notNull().references(() => exams.id),
+  examId: uuid('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
   status: attemptStatusEnum('status').default('in_progress').notNull(),
   currentSection: smallint('current_section').default(1).notNull(), // 1: S1, 2: S2 Read, 3: S2 Recall, 4: S3, 5: Submitted
   startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),

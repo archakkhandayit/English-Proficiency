@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface ExamTimerProps {
   initialSeconds: number;
@@ -15,30 +15,37 @@ export const ExamTimer: React.FC<ExamTimerProps> = ({
   criticalThresholdSeconds = 15,
 }) => {
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+  const onExpireRef = useRef(onExpire);
+
+  // Keep callback reference updated without triggering interval re-creations
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  });
 
   useEffect(() => {
     setSecondsLeft(initialSeconds);
-  }, [initialSeconds]);
+    if (initialSeconds <= 0) return;
 
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      onExpire();
-      return;
-    }
+    // Use absolute timestamp countdown to eliminate typing freezes and interval drift
+    const endTime = Date.now() + initialSeconds * 1000;
+    let hasExpired = false;
 
-    const interval = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          onExpire();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+
+      if (remaining <= 0 && !hasExpired) {
+        hasExpired = true;
+        clearInterval(interval);
+        onExpireRef.current?.();
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 250);
 
     return () => clearInterval(interval);
-  }, [secondsLeft, onExpire]);
+  }, [initialSeconds]);
 
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
@@ -56,12 +63,13 @@ export const ExamTimer: React.FC<ExamTimerProps> = ({
 
   return (
     <span
-      className={`font-timer-display text-timer-display tabular-nums ${colorClass}`}
+      className={`font-timer-display text-timer-display tabular-nums select-none ${colorClass}`}
       aria-label={`Time Remaining: ${formattedTime}`}
     >
       {formattedTime}
     </span>
   );
 };
+
 
 

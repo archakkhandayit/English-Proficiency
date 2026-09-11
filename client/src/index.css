@@ -44,3 +44,33 @@ body {
   -webkit-font-smoothing: antialiased;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
+/* Exam Workspace Selection Prevention & Tab Formatting */
+.select-none,
+.exam-workspace,
+.exam-unselectable {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* Ensure typing, editing, and cursor selection remain enabled inside input fields */
+.exam-workspace input,
+.exam-workspace textarea,
+input.exam-input,
+textarea.exam-input {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Standard Tab width for textareas and inputs */
+textarea,
+input {
+  tab-size: 4;
+  -moz-tab-size: 4;
+}
+

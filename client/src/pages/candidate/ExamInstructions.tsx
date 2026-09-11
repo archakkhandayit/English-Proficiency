@@ -47,8 +47,12 @@ export const ExamInstructions: React.FC = () => {
   }
 
   return (
-    <div className="bg-surface-canvas min-h-screen flex flex-col font-body-default text-body-default text-text-primary antialiased">
+    <div
+      onContextMenu={(e) => e.preventDefault()}
+      className="bg-surface-canvas min-h-screen flex flex-col font-body-default text-body-default text-text-primary antialiased exam-workspace select-none"
+    >
       <CandidateNavbar showLogout />
+
 
       {/* Main Workspace */}
       <main className="flex-grow flex flex-col items-center py-unit-12 px-unit-6 sm:px-unit-8 w-full max-w-[700px] mx-auto box-border">
@@ -80,7 +84,7 @@ export const ExamInstructions: React.FC = () => {
                 <span className="font-label-mono text-label-mono text-text-primary mr-1">
                   {exam.question_counts?.section1 || 15}
                 </span>{' '}
-                questions. Complete each sentence by typing the missing word in the blank.
+                questions (25 seconds per question). Complete each sentence by typing the missing word in the blank. Responses auto-advance and save when the timer runs out.
               </p>
             </div>
 
@@ -104,7 +108,7 @@ export const ExamInstructions: React.FC = () => {
               </h2>
               <p className="text-text-muted font-body-default text-body-default">
                 <span className="font-label-mono text-label-mono text-text-primary mr-1">1</span> prompt.{' '}
-                <span className="font-label-mono text-label-mono text-text-primary mr-1">10</span> minutes. Compose a professional business email incorporating all required bullet points.
+                <span className="font-label-mono text-label-mono text-text-primary mr-1">9</span> minutes. Compose a professional business email incorporating all required bullet points.
               </p>
             </div>
           </div>
@@ -114,10 +118,11 @@ export const ExamInstructions: React.FC = () => {
         <div className="w-full mb-unit-10">
           <h3 className="font-label-prominent text-label-prominent font-medium text-text-primary mb-unit-4">Important Guidelines</h3>
           <ul className="list-disc pl-5 space-y-unit-2 text-text-muted font-body-default text-body-default marker:text-text-muted">
-            <li>The timer begins immediately once you start.</li>
-            <li>Each section is timed independently and cannot be revisited once completed.</li>
+            <li>Section 1 questions are timed at 25 seconds per question and advance automatically.</li>
+            <li>Question progression is strictly sequential; you cannot revisit previous questions or sections.</li>
             <li>In Section 2, the stimulus text disappears during recall.</li>
             <li>Your responses are saved automatically as you type.</li>
+            <li>Browser back navigation is locked throughout the exam until final evaluation.</li>
           </ul>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
+import { handleTabInsert } from '../../utils/textUtils';
 import type { ExamStatus } from '@nqt/shared';
 
 interface Section1Item {
@@ -324,9 +325,11 @@ export const ExamEditor: React.FC = () => {
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                onKeyDown={(e) => handleTabInsert(e, (val) => setDescription(val))}
                 disabled={locked}
                 placeholder="Standard English proficiency evaluation..."
               />
+
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -426,7 +429,15 @@ export const ExamEditor: React.FC = () => {
                             prev.map((q, i) => (i === idx ? { ...q, sentenceWithBlank: val } : q))
                           );
                         }}
+                        onKeyDown={(e) =>
+                          handleTabInsert(e, (val) =>
+                            setSection1((prev) =>
+                              prev.map((q, i) => (i === idx ? { ...q, sentenceWithBlank: val } : q))
+                            )
+                          )
+                        }
                       />
+
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-label-default font-label-default text-text-muted">
@@ -525,6 +536,13 @@ export const ExamEditor: React.FC = () => {
                           prev.map((p, i) => (i === idx ? { ...p, passageText: val } : p))
                         );
                       }}
+                      onKeyDown={(e) =>
+                        handleTabInsert(e, (val) =>
+                          setSection2((prev) =>
+                            prev.map((p, i) => (i === idx ? { ...p, passageText: val } : p))
+                          )
+                        )
+                      }
                     />
                   </div>
                 </div>
@@ -556,10 +574,12 @@ export const ExamEditor: React.FC = () => {
                 value={section3Prompt}
                 disabled={locked}
                 onChange={(e) => setSection3Prompt(e.target.value)}
+                onKeyDown={(e) => handleTabInsert(e, (val) => setSection3Prompt(val))}
               />
             </div>
           </div>
         </section>
+
       </main>
 
       {/* Sticky Bottom Action Bar (Stitch screen 67cd2ea0a1874c1bbedc15f6b297ec5d) */}

@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { CandidateNavbar } from '../../components/CandidateNavbar';
 import { ExamTimer } from '../../components/ExamTimer';
+import { useExamNavigationGuard } from '../../hooks/useExamNavigationGuard';
 import { Loader2 } from 'lucide-react';
 import type { Attempt } from '@nqt/shared';
 
@@ -21,23 +22,32 @@ export const Section2Read: React.FC = () => {
 
   const passageNum = parseInt(searchParams.get('passage') || '1', 10);
 
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [passage, setPassage] = useState<PassageReadData | null>(null);
   const [totalPassages, setTotalPassages] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Lock browser back navigation and prevent accessing questions after submission
+  useExamNavigationGuard({
+    examId,
+    attempt,
+    currentSectionNumber: 2,
+  });
 
   useEffect(() => {
     const fetchPassage = async () => {
       try {
         // Start or retrieve attempt
         const startRes = await api.post(`/candidate/exams/${examId}/start`);
-        const attempt: Attempt = startRes.data.attempt;
+        const currentAttempt: Attempt = startRes.data.attempt;
+        setAttempt(currentAttempt);
 
         // Fetch meta
-        const metaRes = await api.get(`/candidate/attempts/${attempt.id}/section2/passages-meta`);
+        const metaRes = await api.get(`/candidate/attempts/${currentAttempt.id}/section2/passages-meta`);
         setTotalPassages(metaRes.data.total_passages || 1);
 
         // Fetch stimulus for current passage
-        const readRes = await api.get(`/candidate/attempts/${attempt.id}/section2/read/${passageNum}`);
+        const readRes = await api.get(`/candidate/attempts/${currentAttempt.id}/section2/read/${passageNum}`);
         setPassage(readRes.data);
       } catch (err) {
         console.error('Failed to load Section 2 stimulus', err);
@@ -65,7 +75,10 @@ export const Section2Read: React.FC = () => {
   const passageText = passage.passage_text || passage.passageText;
 
   return (
-    <div className="bg-surface-canvas font-body-default text-body-default text-text-primary antialiased min-h-screen flex flex-col justify-between select-none">
+    <div
+      onContextMenu={(e) => e.preventDefault()}
+      className="bg-surface-canvas font-body-default text-body-default text-text-primary antialiased min-h-screen flex flex-col justify-between exam-workspace select-none"
+    >
       <CandidateNavbar
         timerNode={
           <ExamTimer
@@ -76,6 +89,7 @@ export const Section2Read: React.FC = () => {
           />
         }
       />
+
 
       <main className="w-full flex-grow flex flex-col items-center py-unit-12 px-unit-4">
         <div className="w-full max-w-[680px] flex flex-col gap-unit-6">
