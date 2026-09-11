@@ -141,7 +141,6 @@ export const Scorecard: React.FC<ScorecardProps> = ({
 
   const displayName = candidateName || scorecard.candidate_name;
   const displayEmail = (scorecard as any).candidate_email;
-  const modelVersion = scorecard.model_version || 'gemini-2.5-flash';
 
   return (
     <div className="space-y-6 text-primaryText font-sans antialiased">
@@ -149,29 +148,39 @@ export const Scorecard: React.FC<ScorecardProps> = ({
       <div className="bg-card border border-borderRule rounded p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
           {/* Left Metadata */}
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider bg-emerald-50 text-success border border-emerald-200">
-                Evaluated
-              </span>
-              <span className="text-xs text-mutedText font-mono" id="attemptTimestamp">
-                {isAdminView && displayName
-                  ? `Candidate: ${displayName}${displayEmail ? ` (${displayEmail})` : ''} · `
-                  : ''}
-                Completed on {formatCompletionDate()} · Time Spent: {formatTimeSpent()} · Model: {modelVersion}
-              </span>
-            </div>
+          <div className="space-y-2 max-w-2xl">
+  <div className="flex items-center gap-2">
+    <span className="px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider bg-emerald-50 text-success border border-emerald-200">
+      Evaluated
+    </span>
+    <span className="text-xs text-mutedText font-medium">Official Scorecard</span>
+  </div>
 
-            <h1 className="text-2xl font-semibold text-primaryText" id="examTitle">
-              Assessment Results: {examTitle || scorecard.exam_title || 'TCS NQT English Assessment 2026 Batch A (v1)'}
-            </h1>
+  <h1 className="text-2xl font-semibold text-primaryText" id="examTitle">
+    Assessment Results: {examTitle || scorecard.exam_title || 'TCS NQT English Assessment'}
+  </h1>
 
-            <p className="text-sm text-mutedText">
-              {isAdminView
-                ? 'Certified automated AI grading complete. Official scorecard verified and logged to database. Read-only administrative audit review.'
-                : 'Certified automated AI grading complete. Official scorecard verified and logged to database.'}
-            </p>
-          </div>
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-mutedText font-mono pt-1">
+    {displayName && (
+      <>
+        <span className="text-primaryText font-medium">
+          {displayName}
+          {isAdminView && displayEmail ? ` (${displayEmail})` : ''}
+        </span>
+        <span>•</span>
+      </>
+    )}
+    <span>Completed on {formatCompletionDate()}</span>
+    <span>•</span>
+    <span>Time Spent: {formatTimeSpent()}</span>
+    {isAdminView && scorecard.model_version && (
+      <>
+        <span>•</span>
+        <span>Model: {scorecard.model_version}</span>
+      </>
+    )}
+  </div>
+</div>
 
           {/* Right Score Block */}
           <div className="sm:text-right flex sm:flex-col justify-between items-end sm:items-end shrink-0 border-t sm:border-t-0 pt-4 sm:pt-0 border-borderRule">

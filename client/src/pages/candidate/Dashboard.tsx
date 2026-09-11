@@ -78,8 +78,6 @@ export const CandidateDashboard: React.FC = () => {
     }
   };
 
-  const completedAttempts = exams.filter((e) => e.attempt);
-
   return (
     <div className="bg-surface-canvas text-text-primary min-h-screen flex flex-col font-body-default text-body-default antialiased">
       <CandidateNavbar showLogout />
@@ -106,16 +104,22 @@ export const CandidateDashboard: React.FC = () => {
           </div>
         ) : exams.length === 0 ? (
           <div className="bg-surface-card border border-border-rule rounded p-8 text-center shadow-sm">
-            <h3 className="text-sm font-semibold text-text-primary">No Active Assessments</h3>
-            <p className="text-xs text-text-muted mt-1">There are currently no active NQT English assessments assigned to your account.</p>
+            <h3 className="text-sm font-semibold text-text-primary">All Caught Up!</h3>
+            <p className="text-xs text-text-muted mt-1">There are currently no active or pending assessments assigned to your account.</p>
+            <div className="mt-4">
+              <button
+                onClick={() => navigate('/candidate/attempts')}
+                className="text-primary-container font-label-prominent text-label-prominent hover:text-[#172554] underline cursor-pointer"
+              >
+                View My Previous Attempts →
+              </button>
+            </div>
           </div>
         ) : (
-          /* Active Exams List */
+          /* Active Available Exams List */
           <div className="space-y-unit-4 mb-unit-12">
             {exams.map((exam) => {
               const attempt = exam.attempt;
-              const isEvaluated = attempt?.status === 'evaluated';
-              const isEvaluating = attempt?.status === 'submitted' || attempt?.status === 'evaluating';
               const isInProgress = attempt?.status === 'in_progress';
 
               return (
@@ -125,7 +129,14 @@ export const CandidateDashboard: React.FC = () => {
                 >
                   <div className="flex justify-between items-start mb-unit-4">
                     <div>
-                      <h2 className="font-headline-md text-headline-md text-text-primary mb-unit-2">{exam.title}</h2>
+                      <div className="flex items-center gap-2 mb-unit-2">
+                        <h2 className="font-headline-md text-headline-md text-text-primary">{exam.title}</h2>
+                        {isInProgress && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EFF6FF] text-primary-container border border-blue-200">
+                            In Progress
+                          </span>
+                        )}
+                      </div>
                       <p className="font-body-default text-body-default text-text-muted">
                         {exam.description || 'Comprehensive evaluation covering Sentence Completion, Passage Recall, and Professional Email Writing.'}
                       </p>
@@ -146,75 +157,12 @@ export const CandidateDashboard: React.FC = () => {
                       onClick={() => handleAction(exam)}
                       className="bg-primary-container text-on-primary border border-primary-container hover:bg-[#172554] active:bg-text-primary px-unit-5 py-[10px] rounded font-label-prominent text-label-prominent transition-colors cursor-pointer"
                     >
-                      {isEvaluated
-                        ? 'View Scorecard'
-                        : isEvaluating
-                        ? 'Evaluation Status'
-                        : isInProgress
-                        ? 'Resume Assessment'
-                        : 'Start Assessment'}
+                      {isInProgress ? 'Resume Assessment' : 'Start Assessment'}
                     </button>
                   </div>
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {/* Recent Attempts Table */}
-        {completedAttempts.length > 0 && (
-          <div>
-            <h2 className="font-headline-md text-headline-md text-text-primary mb-unit-4">Previous Attempts</h2>
-            <div className="bg-surface-card border border-border-rule rounded overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-surface-canvas border-b border-border-rule font-label-prominent text-label-prominent text-text-muted">
-                    <th className="p-unit-4 font-normal">Assessment</th>
-                    <th className="p-unit-4 font-normal">Date</th>
-                    <th className="p-unit-4 font-normal">Status</th>
-                    <th className="p-unit-4 font-normal text-right">AI Score</th>
-                    <th className="p-unit-4 font-normal text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="font-body-default text-body-default text-text-primary">
-                  {completedAttempts.map((exam) => {
-                    const attempt = exam.attempt!;
-                    const isEvaluated = attempt.status === 'evaluated';
-                    const isEvaluating = attempt.status === 'submitted' || attempt.status === 'evaluating';
-
-                    return (
-                      <tr key={attempt.id} className="border-b border-border-rule hover:bg-surface-canvas transition-colors">
-                        <td className="p-unit-4 font-medium">{exam.title}</td>
-                        <td className="p-unit-4 font-label-mono text-label-mono text-text-muted">
-                          {new Date(attempt.startedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
-                        </td>
-                        <td className="p-unit-4">
-                          <span className="inline-flex items-center gap-unit-2">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                isEvaluated ? 'bg-state-success' : isEvaluating ? 'bg-timer-warning' : 'bg-secondary'
-                              }`}
-                            />
-                            {isEvaluated ? 'Evaluated' : isEvaluating ? 'In Evaluation' : 'In Progress'}
-                          </span>
-                        </td>
-                        <td className="p-unit-4 font-label-mono text-label-mono text-right">
-                          {exam.scorecard ? `${Number(exam.scorecard.compositeScore).toFixed(1)}/100` : '--/100'}
-                        </td>
-                        <td className="p-unit-4 text-right">
-                          <button
-                            onClick={() => handleAction(exam)}
-                            className="text-primary-container hover:text-text-primary font-label-prominent text-label-prominent transition-colors cursor-pointer"
-                          >
-                            {isEvaluated ? 'View Feedback' : 'Resume'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
         )}
       </main>

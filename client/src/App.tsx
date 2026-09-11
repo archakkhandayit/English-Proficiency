@@ -7,6 +7,7 @@ import { CandidateRoute, AdminRoute, GuestRoute } from './components/ProtectedRo
 import { CandidateLogin } from './pages/candidate/Login';
 import { CandidateRegister } from './pages/candidate/Register';
 import { CandidateDashboard } from './pages/candidate/Dashboard';
+import { CandidateAttempts } from './pages/candidate/CandidateAttempts';
 import { ExamInstructions } from './pages/candidate/ExamInstructions';
 import { Section1 } from './pages/candidate/Section1';
 import { Transition } from './pages/candidate/Transition';
@@ -41,6 +42,7 @@ export function App() {
             {/* Candidate Protected Routes */}
             <Route element={<CandidateRoute />}>
               <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
+              <Route path="/candidate/attempts" element={<CandidateAttempts />} />
               <Route path="/candidate/exams/:id/instructions" element={<ExamInstructions />} />
               <Route path="/candidate/exams/:id/section1" element={<Section1 />} />
               <Route path="/candidate/exams/:id/transition" element={<Transition />} />

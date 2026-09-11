@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
 import { Scorecard } from '../../components/Scorecard';
@@ -49,10 +49,12 @@ interface AttemptAuditData {
 
 export const AttemptAudit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [data, setData] = useState<AttemptAuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAuditData = async () => {
@@ -84,6 +86,22 @@ export const AttemptAudit: React.FC = () => {
     }
   };
 
+  const handleDeleteAttempt = async () => {
+    if (!data) return;
+    const candidateLabel = data.attempt.candidateName || data.attempt.candidateEmail || 'this candidate';
+    const confirmMsg = `Are you sure you want to permanently delete the attempt for ${candidateLabel} on "${data.attempt.examTitle}"?\n\nThis will permanently erase all candidate responses, AI evaluations, and the scorecard.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setDeleting(true);
+    try {
+      await api.delete(`/admin/attempts/${id}`);
+      navigate('/admin/attempts');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete attempt.');
+      setDeleting(false);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="bg-surface-canvas text-text-primary font-body-default min-h-screen flex flex-col antialiased">
@@ -110,13 +128,22 @@ export const AttemptAudit: React.FC = () => {
             ← Back to Candidate Attempts
           </Link>
 
-          <button
-            onClick={handleRerunEvaluation}
-            disabled={evaluating}
-            className="bg-primary-container text-on-primary px-4 py-2 rounded text-xs font-semibold hover:bg-[#172554] transition-colors duration-100 disabled:opacity-50 cursor-pointer"
-          >
-            {evaluating ? 'Re-evaluating...' : 'Re-run AI Evaluation'}
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleRerunEvaluation}
+              disabled={evaluating || deleting}
+              className="bg-primary-container text-on-primary px-4 py-2 rounded text-xs font-semibold hover:bg-[#172554] transition-colors duration-100 disabled:opacity-50 cursor-pointer"
+            >
+              {evaluating ? 'Re-evaluating...' : 'Re-run AI Evaluation'}
+            </button>
+            <button
+              onClick={handleDeleteAttempt}
+              disabled={deleting || evaluating}
+              className="border border-rose-300 text-timer-critical hover:bg-rose-50 px-4 py-2 rounded text-xs font-semibold transition-colors duration-100 disabled:opacity-50 cursor-pointer"
+            >
+              {deleting ? 'Deleting...' : 'Delete Attempt'}
+            </button>
+          </div>
         </div>
 
         {error && (

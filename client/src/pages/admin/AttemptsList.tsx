@@ -35,6 +35,7 @@ export const AttemptsList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'evaluated' | 'submitted' | 'in_progress'>('all');
   const [selectedExam, setSelectedExam] = useState<string>('all');
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchAttempts = async () => {
     try {
@@ -60,6 +61,22 @@ export const AttemptsList: React.FC = () => {
       setError(err.response?.data?.error || 'Failed to trigger evaluation.');
     } finally {
       setEvaluatingId(null);
+    }
+  };
+
+  const handleDeleteAttempt = async (att: AdminAttemptItem) => {
+    const candidateLabel = att.candidateName || att.candidateEmail || 'this candidate';
+    const confirmMsg = `Are you sure you want to permanently delete the attempt for ${candidateLabel} on "${att.examTitle}"?\n\nThis will permanently erase all candidate responses, AI grading evaluations, and scorecards.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setDeletingId(att.id);
+    try {
+      await api.delete(`/admin/attempts/${att.id}`);
+      await fetchAttempts();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete attempt.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -263,7 +280,7 @@ export const AttemptsList: React.FC = () => {
                       <td className="py-2 px-4 text-right font-label-mono text-label-mono tabular-nums text-text-primary">
                         {scoreDisplay || (att.status === 'in_progress' ? '—' : 'Pending')}
                       </td>
-                      <td className="py-2 px-4 text-right whitespace-nowrap">
+                      <td className="py-2 px-4 text-right whitespace-nowrap space-x-2">
                         {att.status === 'evaluated' && (
                           <Link
                             to={`/admin/attempts/${att.id}`}
@@ -289,6 +306,13 @@ export const AttemptsList: React.FC = () => {
                             View Progress
                           </Link>
                         )}
+                        <button
+                          onClick={() => handleDeleteAttempt(att)}
+                          disabled={deletingId === att.id}
+                          className="text-timer-critical hover:text-[#991B1B] px-2 py-1.5 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   );
