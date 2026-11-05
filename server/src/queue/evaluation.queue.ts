@@ -10,13 +10,13 @@ export const evaluationQueue = new Queue('evaluation', {
       delay: 2000,
     },
     removeOnComplete: true,
-    removeOnFail: false,
+    removeOnFail: true,
   },
 });
 
 export async function enqueueEvaluation(attemptId: string): Promise<void> {
   await evaluationQueue.add('evaluate-attempt', { attemptId }, {
-    jobId: `eval-${attemptId}`,
+    jobId: `eval-${attemptId}-${Date.now()}`,
   });
 }
 

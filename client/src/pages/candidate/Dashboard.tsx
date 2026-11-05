@@ -61,7 +61,7 @@ export const CandidateDashboard: React.FC = () => {
       return;
     }
 
-    if (status === 'submitted' || status === 'evaluating') {
+    if (status === 'submitted' || status === 'evaluating' || status === 'evaluation_failed') {
       navigate(`/candidate/exams/${exam.id}/wait`);
       return;
     }
@@ -129,11 +129,21 @@ export const CandidateDashboard: React.FC = () => {
                 >
                   <div className="flex justify-between items-start mb-unit-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-unit-2">
+                      <div className="flex items-center gap-2 mb-unit-2 flex-wrap">
                         <h2 className="font-headline-md text-headline-md text-text-primary">{exam.title}</h2>
                         {isInProgress && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EFF6FF] text-primary-container border border-blue-200">
                             In Progress
+                          </span>
+                        )}
+                        {(attempt?.status === 'submitted' || attempt?.status === 'evaluating' || attempt?.status === 'evaluation_failed') && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FFFBEB] text-[#B45309] border border-[#D97706]">
+                            Submitted — In Evaluation
+                          </span>
+                        )}
+                        {attempt?.status === 'evaluated' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#DCFCE7] text-[#15803D] border border-[#16A34A]">
+                            Completed
                           </span>
                         )}
                       </div>
@@ -157,7 +167,13 @@ export const CandidateDashboard: React.FC = () => {
                       onClick={() => handleAction(exam)}
                       className="bg-primary-container text-on-primary border border-primary-container hover:bg-[#172554] active:bg-text-primary px-unit-5 py-[10px] rounded font-label-prominent text-label-prominent transition-colors cursor-pointer"
                     >
-                      {isInProgress ? 'Resume Assessment' : 'Start Assessment'}
+                      {isInProgress
+                        ? 'Resume Assessment'
+                        : attempt?.status === 'evaluated'
+                        ? 'View Results'
+                        : attempt?.status === 'submitted' || attempt?.status === 'evaluating' || attempt?.status === 'evaluation_failed'
+                        ? 'Check Status'
+                        : 'Start Assessment'}
                     </button>
                   </div>
                 </div>

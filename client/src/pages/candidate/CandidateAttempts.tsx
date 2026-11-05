@@ -54,7 +54,7 @@ export const CandidateAttempts: React.FC = () => {
       return;
     }
 
-    if (status === 'submitted' || status === 'evaluating') {
+    if (status === 'submitted' || status === 'evaluating' || status === 'evaluation_failed') {
       navigate(`/candidate/exams/${examId}/wait`);
       return;
     }
@@ -127,6 +127,7 @@ export const CandidateAttempts: React.FC = () => {
                 {attempts.map((attempt) => {
                   const isEvaluated = attempt.status === 'evaluated';
                   const isEvaluating = attempt.status === 'submitted' || attempt.status === 'evaluating';
+                  const isFailed = attempt.status === 'evaluation_failed';
                   const isInProgress = attempt.status === 'in_progress';
 
                   return (
@@ -154,6 +155,8 @@ export const CandidateAttempts: React.FC = () => {
                                 ? 'bg-state-success'
                                 : isEvaluating
                                 ? 'bg-timer-warning'
+                                : isFailed
+                                ? 'bg-amber-600'
                                 : 'bg-primary-container'
                             }`}
                           />
@@ -162,6 +165,8 @@ export const CandidateAttempts: React.FC = () => {
                               ? 'Evaluated'
                               : isEvaluating
                               ? 'In Evaluation'
+                              : isFailed
+                              ? 'Evaluation Queued'
                               : isInProgress
                               ? 'In Progress'
                               : attempt.status}
@@ -169,7 +174,7 @@ export const CandidateAttempts: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-unit-4 font-label-mono text-label-mono text-right">
-                        {attempt.scorecard
+                        {isEvaluated && attempt.scorecard
                           ? `${Number(attempt.scorecard.compositeScore).toFixed(1)}/100`
                           : '--/100'}
                       </td>
@@ -180,7 +185,7 @@ export const CandidateAttempts: React.FC = () => {
                         >
                           {isEvaluated
                             ? 'View Scorecard'
-                            : isEvaluating
+                            : isEvaluating || isFailed
                             ? 'Check Status'
                             : 'Resume'}
                         </button>

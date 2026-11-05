@@ -2,15 +2,13 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '../config/db.js';
 import { env } from '../config/env.js';
 import * as schema from '../db/schema.js';
-import { attemptEvents } from './events.service.js';
 import type { ScorecardMatrices, RubricDimension } from '@nqt/shared';
 
 const MODEL_NAME = env.GEMINI_MODEL;
 
-async function callGeminiJson<T>(prompt: string, schemaObj: any = null): Promise<T | null> {
+async function callGeminiJson<T>(prompt: string, schemaObj: any = null, maxRetries = 5): Promise<T> {
   if (!env.GEMINI_API_KEY) {
-    console.warn('[Gemini API] GEMINI_API_KEY is not set. Falling back to local heuristic evaluator.');
-    return null;
+    throw new Error('GEMINI_API_KEY is not configured on the server.');
   }
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${env.GEMINI_API_KEY}`;
@@ -26,38 +24,78 @@ async function callGeminiJson<T>(prompt: string, schemaObj: any = null): Promise
     payload.generationConfig.responseSchema = schemaObj;
   }
 
-  console.log(`[Gemini API] Sending request to ${MODEL_NAME}...`);
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(20000), // 20s timeout
-    });
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[Gemini API] Request attempt ${attempt}/${maxRetries} to ${MODEL_NAME}...`);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(25000), // 25s timeout
+      });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[Gemini API Error] HTTP ${res.status}: ${errText}`);
-      console.warn('[Gemini API] Falling back to local heuristic evaluator due to API error.');
-      return null;
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[Gemini API Error] HTTP ${res.status}: ${errText}`);
+
+        // Non-retryable client errors: fail-fast immediately
+        if ([400, 401, 403, 404].includes(res.status)) {
+          throw new Error(`Gemini client error (HTTP ${res.status}): ${errText.slice(0, 300)}`);
+        }
+
+        // Retryable server errors (503 high demand, 429 rate limit, 500/502/504)
+        if (attempt < maxRetries) {
+          // Exponential backoff with jitter: 2s -> 4s -> 8s -> 12s (+ 0-600ms random jitter)
+          const baseDelayMs = Math.min(12000, 2000 * Math.pow(2, attempt - 1));
+          const jitterMs = Math.floor(Math.random() * 600);
+          const delayMs = baseDelayMs + jitterMs;
+
+          console.warn(`[Gemini API] Transient HTTP ${res.status}. Retrying attempt ${attempt + 1}/${maxRetries} in ${delayMs}ms...`);
+          await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+
+        throw new Error(`Gemini API error (HTTP ${res.status}): ${errText.slice(0, 300)}`);
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error('Gemini API returned an empty or blocked candidate response.');
+      }
+
+      console.log(`[Gemini API] Successfully received and parsed response from ${MODEL_NAME}`);
+      const cleanText = text.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
+      return JSON.parse(cleanText) as T;
+    } catch (err: any) {
+      // Don't retry non-retryable errors
+      if (err.message?.includes('Gemini client error')) {
+        throw err;
+      }
+
+      const isRetryable =
+        err.message?.includes('503') ||
+        err.message?.includes('429') ||
+        err.message?.includes('high demand') ||
+        err.name === 'TimeoutError' ||
+        err.message?.includes('aborted') ||
+        err.message?.includes('fetch failed');
+
+      if (attempt < maxRetries && isRetryable) {
+        const baseDelayMs = Math.min(12000, 2000 * Math.pow(2, attempt - 1));
+        const jitterMs = Math.floor(Math.random() * 600);
+        const delayMs = baseDelayMs + jitterMs;
+
+        console.warn(`[Gemini API] Transient failure (${err.message}). Retrying attempt ${attempt + 1}/${maxRetries} in ${delayMs}ms...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+
+      throw err;
     }
-
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      console.error('[Gemini API] No text in candidate response.');
-      return null;
-    }
-
-    console.log(`[Gemini API] Successfully received and parsed response from ${MODEL_NAME}`);
-    // Clean any markdown fences if present
-    const cleanText = text.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
-    return JSON.parse(cleanText) as T;
-  } catch (err: any) {
-    console.error(`[Gemini API Exception] ${err.message}`);
-    console.warn('[Gemini API] Falling back to local heuristic evaluator due to exception.');
-    return null;
   }
+
+  throw new Error(`Gemini API request failed after ${maxRetries} attempts.`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -152,7 +190,7 @@ Return a JSON array of objects with:
 - feedback: string (1 sentence explaining reasoning)
 - match_type: "valid_synonym" | "grammatical_mismatch" | "semantic_mismatch" | "invalid"`;
 
-    let aiResults = await callGeminiJson<
+    const aiResults = await callGeminiJson<
       Array<{
         id: string;
         verdict: string;
@@ -162,43 +200,29 @@ Return a JSON array of objects with:
       }>
     >(prompt);
 
+    if (!Array.isArray(aiResults)) {
+      throw new Error('AI returned an invalid response structure for Section 1 synonym evaluation.');
+    }
+
     for (const item of needsAi) {
-      const match = aiResults?.find((r) => r.id === item.resp.id);
-      if (match) {
-        evaluated.push({
-          responseId: item.resp.id,
-          aiVerdict: match.verdict,
-          score: match.score.toFixed(2),
-          maxScore: '1.00',
-          aiFeedback: match.feedback,
-          details: {
-            evaluator: MODEL_NAME,
-            match_type: match.match_type,
-            candidate_word: item.rawAnswer,
-            acceptable_list: item.q.acceptableAnswers,
-          },
-        });
-      } else {
-        // Fallback heuristic if AI unavailable
-        const isLikelyWord = /^[a-zA-Z]{3,20}$/.test(item.rawAnswer);
-        const fallbackVerdict = isLikelyWord ? 'accepted' : 'rejected';
-        const fallbackScore = isLikelyWord ? '1.00' : '0.00';
-        evaluated.push({
-          responseId: item.resp.id,
-          aiVerdict: fallbackVerdict,
-          score: fallbackScore,
-          maxScore: '1.00',
-          aiFeedback: isLikelyWord
-            ? `Word '${item.rawAnswer}' accepted via synonym context validation.`
-            : `Word '${item.rawAnswer}' rejected due to form or vocabulary mismatch.`,
-          details: {
-            evaluator: 'local-heuristic',
-            match_type: isLikelyWord ? 'valid_synonym' : 'invalid',
-            candidate_word: item.rawAnswer,
-            acceptable_list: item.q.acceptableAnswers,
-          },
-        });
+      const match = aiResults.find((r) => r.id === item.resp.id);
+      if (!match) {
+        throw new Error(`AI evaluation response missing item for responseId ${item.resp.id}`);
       }
+
+      evaluated.push({
+        responseId: item.resp.id,
+        aiVerdict: match.verdict,
+        score: Number(match.score || 0).toFixed(2),
+        maxScore: '1.00',
+        aiFeedback: match.feedback || 'Evaluated by AI synonym analysis.',
+        details: {
+          evaluator: MODEL_NAME,
+          match_type: match.match_type,
+          candidate_word: item.rawAnswer,
+          acceptable_list: item.q.acceptableAnswers,
+        },
+      });
     }
   }
 
@@ -251,7 +275,7 @@ Return a JSON object with:
 - key_concepts_missed: string[]
 - distortions_or_hallucinations: string[]`;
 
-    let result = await callGeminiJson<{
+    const result = await callGeminiJson<{
       score: number;
       analysis_summary: string;
       key_concepts_retained: string[];
@@ -259,50 +283,23 @@ Return a JSON object with:
       distortions_or_hallucinations: string[];
     }>(prompt);
 
-    if (result && typeof result.score === 'number') {
-      const clampedScore = Math.max(0, Math.min(100, result.score));
-      return {
-        responseId: resp.id,
-        aiVerdict: clampedScore >= 50.0 ? 'passed' : 'review',
-        score: clampedScore.toFixed(2),
-        maxScore: '100.00',
-        aiFeedback: result.analysis_summary,
-        details: {
-          evaluator: MODEL_NAME,
-          retention_percentage: clampedScore,
-          key_concepts_retained: result.key_concepts_retained || [],
-          key_concepts_missed: result.key_concepts_missed || [],
-          distortions_or_hallucinations: result.distortions_or_hallucinations || [],
-        },
-      };
+    if (!result || typeof result.score !== 'number') {
+      throw new Error(`AI returned an invalid score for Section 2 response ${resp.id}`);
     }
 
-    // Heuristic Fallback based on keyword/content overlap
-    const stimulusWords = new Set(
-      stimulus.toLowerCase().match(/\b[a-z]{4,}\b/g) || []
-    );
-    const candidateWords = new Set(
-      recalled.toLowerCase().match(/\b[a-z]{4,}\b/g) || []
-    );
-    let matchedCount = 0;
-    stimulusWords.forEach((w) => {
-      if (candidateWords.has(w)) matchedCount++;
-    });
-    const ratio = stimulusWords.size > 0 ? (matchedCount / stimulusWords.size) * 100 : 0;
-    const heuristicScore = Math.min(100, Math.max(15, Math.round(ratio * 1.2)));
-
+    const clampedScore = Math.max(0, Math.min(100, result.score));
     return {
       responseId: resp.id,
-      aiVerdict: heuristicScore >= 50 ? 'passed' : 'review',
-      score: heuristicScore.toFixed(2),
+      aiVerdict: clampedScore >= 50.0 ? 'passed' : 'review',
+      score: clampedScore.toFixed(2),
       maxScore: '100.00',
-      aiFeedback: `Demonstrated ${heuristicScore}% content retention based on key propositional overlap.`,
+      aiFeedback: result.analysis_summary || `Demonstrated ${clampedScore}% retention fidelity.`,
       details: {
-        evaluator: 'local-heuristic',
-        retention_percentage: heuristicScore,
-        key_concepts_retained: ['Core thematic points'],
-        key_concepts_missed: heuristicScore < 80 ? ['Secondary quantitative specifics'] : [],
-        distortions_or_hallucinations: [],
+        evaluator: MODEL_NAME,
+        retention_percentage: clampedScore,
+        key_concepts_retained: result.key_concepts_retained || [],
+        key_concepts_missed: result.key_concepts_missed || [],
+        distortions_or_hallucinations: result.distortions_or_hallucinations || [],
       },
     };
   });
@@ -368,73 +365,30 @@ Return a JSON object with:
   - max_score: number (10)
   - feedback: string`;
 
-  let result = await callGeminiJson<{
+  const result = await callGeminiJson<{
     raw_rubric_total: number;
     overall_score_pct: number;
     overall_feedback: string;
     rubric: RubricDimension[];
   }>(prompt);
 
-  if (result && result.rubric && typeof result.raw_rubric_total === 'number') {
-    return {
-      responseId: resp.id,
-      aiVerdict: result.overall_score_pct >= 50.0 ? 'passed' : 'review',
-      score: result.overall_score_pct.toFixed(2),
-      maxScore: '100.00',
-      aiFeedback: result.overall_feedback,
-      details: {
-        evaluator: MODEL_NAME,
-        word_count: wordCount,
-        word_count_compliance: wordCompliance,
-        raw_rubric_total: result.raw_rubric_total,
-        raw_rubric_max: 30,
-        rubric: result.rubric,
-      },
-    };
+  if (!result || !Array.isArray(result.rubric) || typeof result.raw_rubric_total !== 'number') {
+    throw new Error(`AI returned an invalid rubric evaluation for Section 3 response ${resp.id}`);
   }
-
-  // Heuristic Fallback
-  let baseScore = wordCompliance === 'optimal' ? 24 : 18;
-  const rubric: RubricDimension[] = [
-    {
-      dimension: 'structure_and_flow',
-      label: 'Structure & Cohesion',
-      score: Math.min(10, Math.floor(baseScore / 3)),
-      max_score: 10,
-      feedback: 'Appropriate greeting, body framing, and call to action.',
-    },
-    {
-      dimension: 'professional_register',
-      label: 'Corporate Tone & Politeness',
-      score: Math.min(10, Math.floor(baseScore / 3)),
-      max_score: 10,
-      feedback: 'Maintained formal tone aligned with corporate communications.',
-    },
-    {
-      dimension: 'grammar_and_syntax',
-      label: 'Syntactic Precision & Vocabulary',
-      score: Math.min(10, Math.floor(baseScore / 3)),
-      max_score: 10,
-      feedback: 'Sound sentence structures with minimal orthographic errors.',
-    },
-  ];
-
-  const totalRaw = rubric.reduce((acc, r) => acc + r.score, 0);
-  const scorePct = Number(((totalRaw / 30) * 100).toFixed(2));
 
   return {
     responseId: resp.id,
-    aiVerdict: scorePct >= 50.0 ? 'passed' : 'review',
-    score: scorePct.toFixed(2),
+    aiVerdict: result.overall_score_pct >= 50.0 ? 'passed' : 'review',
+    score: result.overall_score_pct.toFixed(2),
     maxScore: '100.00',
-    aiFeedback: `Candidate demonstrated solid corporate email composition with ${wordCount} words (${wordCompliance}).`,
+    aiFeedback: result.overall_feedback || 'Completed AI rubric assessment.',
     details: {
-      evaluator: 'local-heuristic',
+      evaluator: MODEL_NAME,
       word_count: wordCount,
       word_count_compliance: wordCompliance,
-      raw_rubric_total: totalRaw,
+      raw_rubric_total: result.raw_rubric_total,
       raw_rubric_max: 30,
-      rubric,
+      rubric: result.rubric,
     },
   };
 }
@@ -450,8 +404,6 @@ export async function evaluateAttempt(attemptId: string): Promise<void> {
     .update(schema.attempts)
     .set({ status: 'evaluating' })
     .where(eq(schema.attempts.id, attemptId));
-
-  attemptEvents.emit(`attempt:${attemptId}`, { status: 'evaluating' });
 
   try {
     const [attempt] = await db
@@ -490,34 +442,49 @@ export async function evaluateAttempt(attemptId: string): Promise<void> {
     const s2Responses = responses.filter((r) => r.section === 2);
     const s3Response = responses.find((r) => r.section === 3);
 
-    // Concurrently evaluate all sections
-    const [s1Evals, s2Evals, s3Eval] = await Promise.all([
-      evaluateSection1(s1Responses, s1Questions),
-      evaluateSection2(s2Responses, s2Passages),
-      evaluateSection3(s3Response, s3Prompt),
-    ]);
+    // ─────────────────────────────────────────────────────────
+    // Checkpointing: Check which responses already have evaluations stored in DB
+    // ─────────────────────────────────────────────────────────
+    const responseIds = responses.map((r) => r.id);
+    const existingEvals =
+      responseIds.length > 0
+        ? await db
+            .select()
+            .from(schema.evaluations)
+            .where(inArray(schema.evaluations.responseId, responseIds))
+        : [];
 
-    const allEvals = [...s1Evals, ...s2Evals, s3Eval].filter(
-      (ev) => ev && ev.responseId
+    const evalMap = new Map<string, any>(
+      existingEvals.map((e) => [
+        e.responseId,
+        {
+          responseId: e.responseId,
+          aiVerdict: e.aiVerdict || 'review',
+          score: e.score,
+          maxScore: e.maxScore,
+          aiFeedback: e.aiFeedback || '',
+          details: e.details,
+        },
+      ])
     );
 
-    // Persist per-response evaluations (UPSERT by response_id)
-    for (const ev of allEvals) {
-      await db
-        .insert(schema.evaluations)
-        .values({
-          responseId: ev.responseId,
-          aiVerdict: ev.aiVerdict,
-          score: ev.score,
-          maxScore: ev.maxScore,
-          aiFeedback: ev.aiFeedback,
-          details: ev.details,
-          modelVersion: MODEL_NAME,
-          evaluatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: schema.evaluations.responseId,
-          set: {
+    // Helper to persist evaluation checkpoints immediately
+    const persistEvaluations = async (
+      evals: Array<{
+        responseId: string;
+        aiVerdict: string;
+        score: string;
+        maxScore: string;
+        aiFeedback: string;
+        details: any;
+      }>
+    ) => {
+      for (const ev of evals) {
+        if (!ev || !ev.responseId) continue;
+        await db
+          .insert(schema.evaluations)
+          .values({
+            responseId: ev.responseId,
             aiVerdict: ev.aiVerdict,
             score: ev.score,
             maxScore: ev.maxScore,
@@ -525,9 +492,66 @@ export async function evaluateAttempt(attemptId: string): Promise<void> {
             details: ev.details,
             modelVersion: MODEL_NAME,
             evaluatedAt: new Date(),
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: schema.evaluations.responseId,
+            set: {
+              aiVerdict: ev.aiVerdict,
+              score: ev.score,
+              maxScore: ev.maxScore,
+              aiFeedback: ev.aiFeedback,
+              details: ev.details,
+              modelVersion: MODEL_NAME,
+              evaluatedAt: new Date(),
+            },
+          });
+      }
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // Section 1: Sentence Completion (Sequential & Checkpointed)
+    // ─────────────────────────────────────────────────────────
+    const s1Pending = s1Responses.filter((r) => !evalMap.has(r.id));
+    if (s1Pending.length > 0) {
+      console.log(`[EvaluationService] Evaluating ${s1Pending.length} pending Section 1 items...`);
+      const s1NewEvals = await evaluateSection1(s1Pending, s1Questions);
+      await persistEvaluations(s1NewEvals);
+      for (const ev of s1NewEvals) evalMap.set(ev.responseId, ev);
+    } else if (s1Responses.length > 0) {
+      console.log('[EvaluationService] Section 1 already evaluated in DB. Reusing checkpoint.');
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Section 2: Passage Recall (Sequential & Checkpointed)
+    // ─────────────────────────────────────────────────────────
+    const s2Pending = s2Responses.filter((r) => !evalMap.has(r.id));
+    if (s2Pending.length > 0) {
+      console.log(`[EvaluationService] Evaluating ${s2Pending.length} pending Section 2 passages...`);
+      const s2NewEvals = await evaluateSection2(s2Pending, s2Passages);
+      await persistEvaluations(s2NewEvals);
+      for (const ev of s2NewEvals) evalMap.set(ev.responseId, ev);
+    } else if (s2Responses.length > 0) {
+      console.log('[EvaluationService] Section 2 already evaluated in DB. Reusing checkpoint.');
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Section 3: Professional Email (Sequential & Checkpointed)
+    // ─────────────────────────────────────────────────────────
+    if (s3Response && !evalMap.has(s3Response.id)) {
+      console.log('[EvaluationService] Evaluating Section 3 email prompt...');
+      const s3NewEval = await evaluateSection3(s3Response, s3Prompt);
+      if (s3NewEval && s3NewEval.responseId) {
+        await persistEvaluations([s3NewEval]);
+        evalMap.set(s3NewEval.responseId, s3NewEval);
+      }
+    } else if (s3Response) {
+      console.log('[EvaluationService] Section 3 already evaluated in DB. Reusing checkpoint.');
+    }
+
+    // Assemble completed evaluations for scorecard computation
+    const s1Evals = s1Responses.map((r) => evalMap.get(r.id)).filter(Boolean);
+    const s2Evals = s2Responses.map((r) => evalMap.get(r.id)).filter(Boolean);
+    const s3Eval = s3Response ? evalMap.get(s3Response.id) : null;
 
     // Compute composite metrics
     const s1Total = s1Responses.length;
@@ -669,14 +693,6 @@ export async function evaluateAttempt(attemptId: string): Promise<void> {
       .where(eq(schema.attempts.id, attempt.id));
 
     console.log(`[EvaluationService] Successfully evaluated attempt ${attemptId}! Composite: ${compositeScore}% (${proficiencyBand})`);
-
-    // Notify listeners (SSE)
-    attemptEvents.emit(`attempt:${attemptId}`, {
-      status: 'evaluated',
-      compositeScore,
-      proficiencyBand,
-      benchmarkMet,
-    });
   } catch (err: any) {
     console.error(`[EvaluationService] Evaluation failed for attempt ${attemptId}:`, err);
     await db
@@ -686,10 +702,5 @@ export async function evaluateAttempt(attemptId: string): Promise<void> {
         errorMessage: err.message || 'Unknown evaluation failure',
       })
       .where(eq(schema.attempts.id, attemptId));
-
-    attemptEvents.emit(`attempt:${attemptId}`, {
-      status: 'evaluation_failed',
-      error: err.message,
-    });
   }
 }

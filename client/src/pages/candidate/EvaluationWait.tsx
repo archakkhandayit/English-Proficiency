@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { CandidateNavbar } from '../../components/CandidateNavbar';
 import { useAuth } from '../../context/AuthContext';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, ArrowRight, Home } from 'lucide-react';
 import type { Attempt } from '@nqt/shared';
 
 export const EvaluationWait: React.FC = () => {
@@ -11,190 +11,118 @@ export const EvaluationWait: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [examTitle, setExamTitle] = useState('Aptivo English — Practice Assessment 2026');
-  const [currentStep, setCurrentStep] = useState(1);
-  const [error, setError] = useState<string | null>(null);
 
-  // 1. Get current candidate attempt ID
   useEffect(() => {
-    const getAttempt = async () => {
+    const fetchAttemptInfo = async () => {
       try {
         const startRes = await api.post(`/candidate/exams/${examId}/start`);
         const currAttempt: Attempt = startRes.data.attempt;
-        setAttemptId(currAttempt.id);
+        setAttempt(currAttempt);
 
         if (startRes.data.exam?.title) {
           setExamTitle(startRes.data.exam.title);
         }
 
+        // If this attempt is already evaluated, give candidate direct shortcut
         if (currAttempt.status === 'evaluated') {
-          navigate(`/candidate/exams/${examId}/results`);
+          navigate(`/candidate/exams/${examId}/results`, { replace: true });
         }
       } catch (err) {
-        console.error('Failed to get attempt', err);
-        setError('Failed to track evaluation status.');
+        console.error('Failed to load submission info', err);
       }
     };
-    getAttempt();
+
+    fetchAttemptInfo();
   }, [examId, navigate]);
 
-  // 2. Connect to SSE + Polling fallback
-  useEffect(() => {
-    if (!attemptId) return;
-
-    let eventSource: EventSource | null = null;
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
-
-    try {
-      // Connect to Server-Sent Events
-      eventSource = new EventSource(`/api/events/attempts/${attemptId}`, {
-        withCredentials: true,
+  const submittedAtFormatted = attempt?.submitted_at
+    ? new Date(attempt.submitted_at).toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : new Date().toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       });
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.status === 'evaluating') {
-            setCurrentStep(2);
-          } else if (data.status === 'evaluated') {
-            setCurrentStep(4);
-            setTimeout(() => {
-              navigate(`/candidate/exams/${examId}/results`);
-            }, 800);
-          } else if (data.status === 'evaluation_failed') {
-            setError(data.error || 'Evaluation encountered an unexpected failure.');
-          }
-        } catch {
-          // ignore heartbeat
-        }
-      };
-
-      eventSource.onerror = () => {
-        if (eventSource) eventSource.close();
-      };
-    } catch {
-      // Fallback
-    }
-
-    // Polling fallback every 2.5 seconds
-    pollInterval = setInterval(async () => {
-      try {
-        const res = await api.get(`/candidate/attempts/${attemptId}/scorecard`);
-        if (res.data) {
-          setCurrentStep(4);
-          if (pollInterval) clearInterval(pollInterval);
-          setTimeout(() => {
-            navigate(`/candidate/exams/${examId}/results`);
-          }, 800);
-        }
-      } catch {
-        // Still evaluating
-      }
-    }, 2500);
-
-    // Dynamic visual step progression
-    const stepTimer1 = setTimeout(() => setCurrentStep(2), 2000);
-    const stepTimer2 = setTimeout(() => setCurrentStep(3), 4500);
-
-    return () => {
-      if (eventSource) eventSource.close();
-      if (pollInterval) clearInterval(pollInterval);
-      clearTimeout(stepTimer1);
-      clearTimeout(stepTimer2);
-    };
-  }, [attemptId, examId, navigate]);
 
   return (
     <div className="bg-surface-canvas min-h-screen flex flex-col font-body-default text-text-primary antialiased">
       <CandidateNavbar showLogout />
 
       {/* Main Workspace */}
-      <main className="flex-grow flex items-center justify-center p-admin-gutter">
-        <div className="w-full max-w-[640px]">
-          {/* Submission Card */}
+      <main className="flex-grow flex items-center justify-center p-unit-6 md:p-admin-gutter">
+        <div className="w-full max-w-[620px]">
+          {/* Submission Receipt Card */}
           <div className="bg-surface-card border border-border-rule rounded-lg p-unit-8 shadow-sm">
-            {error ? (
-              <div className="space-y-4 text-center py-4">
-                <div className="w-12 h-12 bg-rose-50 border border-rose-200 text-rose-700 rounded-full flex items-center justify-center mx-auto">
-                  <AlertCircle className="w-6 h-6" />
-                </div>
-                <h2 className="text-lg font-semibold text-text-primary font-headline-md">Evaluation Notice</h2>
-                <p className="text-xs text-text-muted">{error}</p>
-                <button
-                  onClick={() => navigate('/candidate/dashboard')}
-                  className="px-5 py-2.5 bg-primary-container text-white text-xs font-semibold rounded cursor-pointer"
-                >
-                  Return to Dashboard
-                </button>
+            {/* Header Icon + Title */}
+            <div className="flex items-start gap-unit-4 mb-unit-6">
+              <div className="w-12 h-12 bg-[#DCFCE7] border border-[#16A34A] rounded-lg flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-[#15803D]" />
               </div>
-            ) : (
-              <>
-                <div className="flex items-start gap-unit-4 mb-unit-6">
-                  <div className="w-unit-12 h-unit-12 bg-[#DCFCE7] border border-[#16A34A] rounded flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[#15803D]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      check
-                    </span>
-                  </div>
-                  <div>
-                    <h1 className="font-headline-lg text-headline-lg text-text-primary mb-unit-1">
-                      Assessment Submitted Successfully
-                    </h1>
-                    <p className="font-body-reading text-body-reading text-text-muted">
-                      {examTitle}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="font-body-reading text-body-reading text-text-primary mb-unit-8">
-                  Your responses for Sentence Completion, Passage Recall, and Email Writing have been saved. AI evaluation is currently in progress.
+              <div>
+                <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">
+                  Assessment Submitted Successfully
+                </h1>
+                <p className="font-body-reading text-body-reading text-text-muted">
+                  {examTitle}
                 </p>
+              </div>
+            </div>
 
-                {/* Details Box */}
-                <div className="bg-surface-canvas border border-border-rule rounded p-unit-4 mb-unit-8 space-y-unit-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-label-default text-label-default text-text-muted">Candidate</span>
-                    <span className="font-body-compact text-body-compact text-text-primary">{user?.name || user?.email}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-label-default text-label-default text-text-muted">Submitted At</span>
-                    <span className="font-label-mono text-label-mono text-text-primary">
-                      {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}{' '}
-                      {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-label-default text-label-default text-text-muted">Status</span>
-                    <span className="inline-flex items-center px-2 py-1 rounded bg-[#FFFBEB] border border-[#D97706] text-[#B45309] font-label-default text-label-default">
-                      Submitted — Evaluation Pending
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-label-default text-label-default text-text-muted">AI Pipeline</span>
-                    <span className="font-label-mono text-label-mono text-text-primary flex items-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-container" />
-                      {currentStep === 1
-                        ? 'Validating Sentence Completion'
-                        : currentStep === 2
-                        ? 'Scoring Passage Recall Fidelity'
-                        : currentStep === 3
-                        ? 'Grading Email Rubric Dimensions'
-                        : 'Finalizing Scorecard'}
-                    </span>
-                  </div>
-                </div>
+            <p className="font-body-reading text-body-reading text-text-primary mb-unit-6 leading-relaxed">
+              Thank you for completing your assessment. All responses for Sentence Completion, Passage Recall, and Professional Email Writing have been securely submitted and logged.
+            </p>
 
-                {/* Actions */}
-                <div className="flex gap-unit-4 justify-end">
-                  <button
-                    onClick={() => navigate('/candidate/dashboard')}
-                    className="px-5 py-[10px] bg-surface-card border border-border-rule rounded text-text-muted font-label-prominent text-label-prominent hover:bg-surface-canvas hover:text-text-primary transition-colors cursor-pointer"
-                  >
-                    Return to Dashboard
-                  </button>
-                </div>
-              </>
-            )}
+            {/* Details Table */}
+            <div className="bg-surface-canvas border border-border-rule rounded-md p-unit-4 mb-unit-6 space-y-unit-3">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-text-muted font-label-default">Candidate</span>
+                <span className="font-medium text-text-primary">{user?.name || user?.email}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-text-muted font-label-default">Submitted At</span>
+                <span className="font-label-mono text-text-primary">{submittedAtFormatted}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-text-muted font-label-default">Evaluation Status</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#FFFBEB] border border-[#D97706] text-[#B45309] font-label-default text-xs font-semibold">
+                  <Clock className="w-3.5 h-3.5" />
+                  Submitted — In Evaluation Queue
+                </span>
+              </div>
+            </div>
+
+            {/* Next Steps Notice */}
+            <div className="bg-[#F8FAFC] border border-blue-100 rounded-md p-unit-4 mb-unit-8 text-xs text-text-muted leading-normal">
+              <strong className="text-text-primary block mb-1">What happens next?</strong>
+              Automated AI evaluation is in progress. You do not need to keep this window open. You may safely return to your dashboard or close your browser. Your performance scorecard will be available in <strong>My Attempts</strong> once evaluation completes.
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-unit-3 justify-end">
+              <button
+                onClick={() => navigate('/candidate/dashboard')}
+                className="px-5 py-2.5 bg-surface-card border border-border-rule rounded text-text-muted hover:text-text-primary hover:bg-surface-canvas font-label-prominent text-label-prominent transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Home className="w-4 h-4" />
+                Return to Dashboard
+              </button>
+              <button
+                onClick={() => navigate('/candidate/attempts')}
+                className="px-5 py-2.5 bg-primary-container text-white rounded hover:bg-[#172554] font-label-prominent text-label-prominent transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                View My Attempts
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -206,4 +134,3 @@ export const EvaluationWait: React.FC = () => {
     </div>
   );
 };
-

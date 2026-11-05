@@ -24,6 +24,7 @@ export const Section3: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sectionStartTimeRef = useRef<number>(Date.now());
 
   // Lock browser back navigation and prevent accessing questions after submission
   useExamNavigationGuard({
@@ -83,12 +84,13 @@ export const Section3: React.FC = () => {
       setSaving(true);
       saveTimerRef.current = setTimeout(async () => {
         try {
+          const elapsedSec = Math.max(1, Math.round((Date.now() - sectionStartTimeRef.current) / 1000));
           await api.put(`/candidate/attempts/${attempt.id}/responses`, {
             item_id: prompt.id,
             section: 3,
             item_type: 'section3_prompt',
             answer_text: text,
-            time_spent_sec: 0,
+            time_spent_sec: elapsedSec,
           });
           setLastSavedTime(new Date().toLocaleTimeString());
         } catch (err) {
@@ -115,13 +117,14 @@ export const Section3: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // Ensure current text is saved
+      // Ensure current text is saved with real time spent
+      const finalElapsedSec = Math.max(1, Math.round((Date.now() - sectionStartTimeRef.current) / 1000));
       await api.put(`/candidate/attempts/${attempt.id}/responses`, {
         item_id: prompt.id,
         section: 3,
         item_type: 'section3_prompt',
         answer_text: emailText,
-        time_spent_sec: 0,
+        time_spent_sec: finalElapsedSec,
       });
 
       // Submit attempt

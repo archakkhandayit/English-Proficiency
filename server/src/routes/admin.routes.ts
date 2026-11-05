@@ -6,6 +6,7 @@ import * as schema from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { enqueueEvaluation } from '../queue/evaluation.queue.js';
+import { evaluateAttempt } from '../services/evaluation.service.js';
 import { buildEvaluatedAttemptPayload } from '../services/scorecard.service.js';
 
 export const adminRouter = Router();
@@ -549,6 +550,13 @@ adminRouter.get('/attempts/:id', async (req, res) => {
       ? await buildEvaluatedAttemptPayload(id)
       : null;
 
+    if (fullScorecard && attempt.status !== fullScorecard.status) {
+      attempt.status = fullScorecard.status as any;
+      if (fullScorecard.evaluated_at) {
+        attempt.evaluatedAt = new Date(fullScorecard.evaluated_at);
+      }
+    }
+
     // Fetch responses and their evaluations
     const responsesWithEvaluations = await db
       .select({
@@ -594,7 +602,58 @@ adminRouter.get('/attempts/:id', async (req, res) => {
 adminRouter.post('/attempts/:id/evaluate', async (req, res) => {
   try {
     const { id } = req.params;
-    await enqueueEvaluation(id);
+    const forceReevaluate = req.body?.force === true;
+
+    const [existing] = await db
+      .select({ status: schema.attempts.status })
+      .from(schema.attempts)
+      .where(eq(schema.attempts.id, id))
+      .limit(1);
+
+    if (!existing) {
+      res.status(404).json({ error: 'Attempt not found.' });
+      return;
+    }
+
+    // If the attempt was already 'evaluated' (or force is requested),
+    // the admin wants a fresh re-grading. Clear previous evaluations
+    // and scorecard so Gemini evaluates all sections from scratch.
+    if (existing.status === 'evaluated' || forceReevaluate) {
+      const attResponses = await db
+        .select({ id: schema.responses.id })
+        .from(schema.responses)
+        .where(eq(schema.responses.attemptId, id));
+
+      const responseIds = attResponses.map((r) => r.id);
+      if (responseIds.length > 0) {
+        await db
+          .delete(schema.evaluations)
+          .where(inArray(schema.evaluations.responseId, responseIds));
+      }
+
+      await db
+        .delete(schema.attemptScorecards)
+        .where(eq(schema.attemptScorecards.attemptId, id));
+    }
+
+    // Reset attempt status and clear error message before re-evaluation
+    await db
+      .update(schema.attempts)
+      .set({
+        status: 'evaluating',
+        errorMessage: null,
+      })
+      .where(eq(schema.attempts.id, id));
+
+    try {
+      await enqueueEvaluation(id);
+    } catch (qErr: any) {
+      console.warn('[AdminRetry] BullMQ enqueue failed, executing evaluateAttempt directly in background:', qErr.message);
+      evaluateAttempt(id).catch((err) => {
+        console.error('[AdminRetry] Direct evaluation failed:', err);
+      });
+    }
+
     res.status(200).json({ message: 'Evaluation re-queued successfully.' });
   } catch (err: any) {
     console.error('Error triggering manual evaluation:', err);

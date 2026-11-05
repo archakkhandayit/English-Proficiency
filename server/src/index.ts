@@ -5,7 +5,6 @@ import { env } from './config/env.js';
 import { authRouter } from './routes/auth.routes.js';
 import { candidateRouter } from './routes/candidate.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
-import { eventsRouter } from './routes/events.routes.js';
 import { startEvaluationWorker } from './workers/evaluation.worker.js';
 
 const allowedOrigins = env.FRONTEND_URLS.split(',');
@@ -27,7 +26,6 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/candidate', candidateRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/events', eventsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

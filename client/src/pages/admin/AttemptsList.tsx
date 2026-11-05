@@ -32,7 +32,7 @@ export const AttemptsList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'evaluated' | 'submitted' | 'in_progress'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'evaluated' | 'submitted' | 'failed' | 'in_progress'>('all');
   const [selectedExam, setSelectedExam] = useState<string>('all');
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -51,6 +51,23 @@ export const AttemptsList: React.FC = () => {
   useEffect(() => {
     fetchAttempts();
   }, []);
+
+  // Live polling while any attempt is actively evaluating
+  useEffect(() => {
+    const hasEvaluating = attempts.some((a) => a.status === 'evaluating');
+    if (!hasEvaluating && !evaluatingId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get<AdminAttemptItem[]>('/admin/attempts');
+        setAttempts(res.data);
+      } catch (err) {
+        console.error('Failed to poll attempts', err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [attempts, evaluatingId]);
 
   const handleTriggerEvaluation = async (id: string) => {
     setEvaluatingId(id);
@@ -99,6 +116,9 @@ export const AttemptsList: React.FC = () => {
       att.status !== 'submitted' &&
       att.status !== 'evaluating'
     ) {
+      return false;
+    }
+    if (statusFilter === 'failed' && att.status !== 'evaluation_failed') {
       return false;
     }
     if (statusFilter === 'in_progress' && att.status !== 'in_progress') {
@@ -195,6 +215,16 @@ export const AttemptsList: React.FC = () => {
               Submitted ({attempts.filter((a) => a.status === 'submitted' || a.status === 'evaluating').length})
             </button>
             <button
+              onClick={() => setStatusFilter('failed')}
+              className={`pb-2 font-label-prominent text-label-prominent transition-colors cursor-pointer whitespace-nowrap ${
+                statusFilter === 'failed'
+                  ? 'border-b-2 border-rose-600 text-rose-600 font-semibold'
+                  : 'border-b-2 border-transparent text-text-muted hover:text-text-primary'
+              }`}
+            >
+              Attention Needed ({attempts.filter((a) => a.status === 'evaluation_failed').length})
+            </button>
+            <button
               onClick={() => setStatusFilter('in_progress')}
               className={`pb-2 font-label-prominent text-label-prominent transition-colors cursor-pointer whitespace-nowrap ${
                 statusFilter === 'in_progress'
@@ -247,6 +277,11 @@ export const AttemptsList: React.FC = () => {
                         <div className="text-text-muted text-[13px]">
                           {att.candidateEmail}
                         </div>
+                        {att.errorMessage && (
+                          <div className="text-[11px] text-rose-600 max-w-[220px] truncate mt-0.5" title={att.errorMessage}>
+                            Error: {att.errorMessage.split('\n')[0]}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 px-4 text-text-primary font-medium">
                         {att.examTitle}
@@ -259,6 +294,13 @@ export const AttemptsList: React.FC = () => {
                         ) : att.status === 'submitted' || att.status === 'evaluating' ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FFFBEB] text-[#B45309] border border-[#D97706]">
                             {att.status === 'evaluating' ? 'Evaluating' : 'Submitted'}
+                          </span>
+                        ) : att.status === 'evaluation_failed' ? (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FEF2F2] text-[#B91C1C] border border-[#EF4444]"
+                            title={att.errorMessage || 'AI Evaluation failed'}
+                          >
+                            Failed
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-canvas text-text-muted border border-border-rule">
@@ -278,24 +320,32 @@ export const AttemptsList: React.FC = () => {
                           : '—'}
                       </td>
                       <td className="py-2 px-4 text-right font-label-mono text-label-mono tabular-nums text-text-primary">
-                        {scoreDisplay || (att.status === 'in_progress' ? '—' : 'Pending')}
+                        {scoreDisplay || (att.status === 'in_progress' ? '—' : att.status === 'evaluation_failed' ? <span className="text-rose-600 font-semibold">Failed</span> : 'Pending')}
                       </td>
                       <td className="py-2 px-4 text-right whitespace-nowrap space-x-2">
-                        {att.status === 'evaluated' && (
+                        {(att.status === 'evaluated' || att.status === 'evaluation_failed') && (
                           <Link
                             to={`/admin/attempts/${att.id}`}
                             className="inline-block bg-surface-card border border-border-rule text-primary-container px-3 py-1.5 rounded hover:bg-surface-canvas hover:border-primary-container transition-colors text-sm font-medium cursor-pointer"
                           >
-                            Review Evaluation
+                            {att.status === 'evaluated' ? 'Review Evaluation' : 'Inspect Attempt'}
                           </Link>
                         )}
-                        {(att.status === 'submitted' || att.status === 'evaluating') && (
+                        {(att.status === 'submitted' || att.status === 'evaluating' || att.status === 'evaluation_failed') && (
                           <button
                             onClick={() => handleTriggerEvaluation(att.id)}
                             disabled={evaluatingId === att.id || att.status === 'evaluating'}
-                            className="bg-primary-container text-on-primary px-3 py-1.5 rounded hover:bg-[#172554] transition-colors text-sm font-medium cursor-pointer disabled:opacity-50"
+                            className={`px-3 py-1.5 rounded transition-colors text-sm font-medium cursor-pointer disabled:opacity-50 ${
+                              att.status === 'evaluation_failed'
+                                ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
+                                : 'bg-primary-container text-on-primary hover:bg-[#172554]'
+                            }`}
                           >
-                            {evaluatingId === att.id ? 'Queuing...' : 'Trigger Evaluation'}
+                            {evaluatingId === att.id
+                              ? 'Queuing...'
+                              : att.status === 'evaluation_failed'
+                              ? 'Retry Evaluation'
+                              : 'Trigger Evaluation'}
                           </button>
                         )}
                         {att.status === 'in_progress' && (

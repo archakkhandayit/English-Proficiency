@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
 import { Scorecard } from '../../components/Scorecard';
+import { Loader2, CheckCircle2, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import type { AttemptScorecard, AttemptStatus } from '@nqt/shared';
 
 interface ResponseWithEvaluation {
@@ -72,16 +73,34 @@ export const AttemptAudit: React.FC = () => {
     fetchAuditData();
   }, [id]);
 
+  // Conditional polling: polls every 2.5s only while evaluation is actively running
+  useEffect(() => {
+    if (data?.attempt?.status !== 'evaluating' && !evaluating) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get<AttemptAuditData>(`/admin/attempts/${id}`);
+        setData(res.data);
+        if (res.data.attempt.status === 'evaluated' || res.data.attempt.status === 'evaluation_failed') {
+          setEvaluating(false);
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Failed to poll attempt status', err);
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [id, data?.attempt?.status, evaluating]);
+
   const handleRerunEvaluation = async () => {
     setEvaluating(true);
+    setError(null);
     try {
       await api.post(`/admin/attempts/${id}/evaluate`);
-      setTimeout(async () => {
-        await fetchAuditData();
-        setEvaluating(false);
-      }, 3000);
+      await fetchAuditData();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to trigger re-evaluation.');
+      setError(err.response?.data?.error || 'Failed to trigger evaluation.');
       setEvaluating(false);
     }
   };
@@ -107,12 +126,32 @@ export const AttemptAudit: React.FC = () => {
       <div className="bg-surface-canvas text-text-primary font-body-default min-h-screen flex flex-col antialiased">
         <AdminNavbar />
         <main className="flex-grow flex items-center justify-center p-8">
-          <div className="text-text-muted font-body-default">Loading attempt audit details...</div>
+          <div className="text-text-muted font-body-default flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-primary-container" />
+            Loading attempt audit details...
+          </div>
         </main>
         <AdminFooter />
       </div>
     );
   }
+
+  // Section response groupings for checkpoint inspection
+  const s1Responses = data.responses.filter((r) => r.response.section === 1);
+  const s2Responses = data.responses.filter((r) => r.response.section === 2);
+  const s3Response = data.responses.find((r) => r.response.section === 3);
+
+  const s1DoneCount = s1Responses.filter((r) => r.evaluation !== null && r.evaluation !== undefined).length;
+  const s1TotalCount = s1Responses.length;
+  const s1IsComplete = s1TotalCount > 0 && s1DoneCount === s1TotalCount;
+
+  const s2DoneCount = s2Responses.filter((r) => r.evaluation !== null && r.evaluation !== undefined).length;
+  const s2TotalCount = s2Responses.length;
+  const s2IsComplete = s2TotalCount > 0 && s2DoneCount === s2TotalCount;
+
+  const s3IsComplete = s3Response?.evaluation !== null && s3Response?.evaluation !== undefined;
+  const isEvaluating = data.attempt.status === 'evaluating' || evaluating;
+  const isFailed = data.attempt.status === 'evaluation_failed';
 
   return (
     <div className="bg-surface-canvas text-text-primary font-body-default min-h-screen flex flex-col antialiased">
@@ -131,14 +170,30 @@ export const AttemptAudit: React.FC = () => {
           <div className="flex items-center space-x-3">
             <button
               onClick={handleRerunEvaluation}
-              disabled={evaluating || deleting}
-              className="bg-primary-container text-on-primary px-4 py-2 rounded text-xs font-semibold hover:bg-[#172554] transition-colors duration-100 disabled:opacity-50 cursor-pointer"
+              disabled={isEvaluating || deleting}
+              className={`px-4 py-2 rounded text-xs font-semibold transition-colors duration-100 disabled:opacity-50 cursor-pointer flex items-center gap-2 ${
+                isFailed
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
+                  : 'bg-primary-container text-on-primary hover:bg-[#172554]'
+              }`}
             >
-              {evaluating ? 'Re-evaluating...' : 'Re-run AI Evaluation'}
+              {isEvaluating ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Evaluating...
+                </>
+              ) : isFailed ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Retry Evaluation
+                </>
+              ) : (
+                'Re-run AI Evaluation'
+              )}
             </button>
             <button
               onClick={handleDeleteAttempt}
-              disabled={deleting || evaluating}
+              disabled={deleting || isEvaluating}
               className="border border-rose-300 text-timer-critical hover:bg-rose-50 px-4 py-2 rounded text-xs font-semibold transition-colors duration-100 disabled:opacity-50 cursor-pointer"
             >
               {deleting ? 'Deleting...' : 'Delete Attempt'}
@@ -149,11 +204,11 @@ export const AttemptAudit: React.FC = () => {
         {error && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-rose-500 font-bold ml-2">✕</button>
+            <button onClick={() => setError(null)} className="text-rose-500 font-bold ml-2 cursor-pointer">✕</button>
           </div>
         )}
 
-        {/* Unified Scorecard Display if evaluated */}
+        {/* Unified Scorecard Display if evaluation is completely evaluated */}
         {data.scorecard ? (
           <Scorecard
             scorecard={data.scorecard}
@@ -162,32 +217,191 @@ export const AttemptAudit: React.FC = () => {
             isAdminView={true}
           />
         ) : (
-          <div className="bg-surface-card border border-border-rule rounded p-8 text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-surface-canvas text-timer-warning border border-border-rule">
-              <span className="material-symbols-outlined text-[24px]">hourglass_top</span>
-            </div>
-            <h2 className="text-headline-md font-headline-md text-text-primary">
-              Attempt Not Yet Evaluated
-            </h2>
-            <p className="text-text-muted font-body-default max-w-md mx-auto">
-              Candidate status is currently <span className="font-semibold text-text-primary uppercase font-mono text-xs">{data.attempt.status}</span>.
-              Click "Re-run AI Evaluation" above to trigger automated grading.
-            </p>
-
-            {/* In Progress response details summary */}
-            <div className="text-left mt-6 pt-6 border-t border-border-rule">
-              <h3 className="font-headline-md text-sm font-semibold text-text-primary mb-3">
-                Logged Responses ({data.responses.length})
-              </h3>
-              <div className="space-y-2">
-                {data.responses.map((r, i) => (
-                  <div key={r.response.id} className="p-3 bg-surface-canvas border border-border-rule rounded text-xs">
-                    <span className="font-semibold text-text-primary">
-                      Section {r.response.section} · Item #{i + 1}:
-                    </span>{' '}
-                    <span className="text-text-muted font-mono">{r.response.answerText || '(No answer entered)'}</span>
+          /* Checkpoint Pipeline Inspector */
+          <div className="bg-surface-card border border-border-rule rounded-lg p-6 space-y-6 shadow-sm">
+            {/* Status Banner */}
+            {isEvaluating ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-700" />
                   </div>
-                ))}
+                  <div>
+                    <h3 className="text-sm font-semibold text-blue-900">AI Evaluation in Progress</h3>
+                    <p className="text-xs text-blue-700 mt-0.5">
+                      Grading sections sequentially. This page auto-refreshes in real-time as checkpoints finish.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono bg-white px-2.5 py-1 rounded border border-blue-200 text-blue-800">
+                  Polling active (2.5s)
+                </span>
+              </div>
+            ) : isFailed ? (
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-4">
+                <div className="flex items-start justify-between flex-wrap gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0 mt-0.5">
+                      <AlertCircle className="w-5 h-5 text-rose-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-rose-900">AI Evaluation Encountered an Error</h3>
+                      <p className="text-xs text-rose-700 font-mono mt-1 break-all">
+                        {data.attempt.errorMessage || 'AI model encountered a service timeout or high-demand spike.'}
+                      </p>
+                      <p className="text-xs text-rose-600 mt-2">
+                        Successfully completed checkpoints are preserved in the database. Clicking Retry will only evaluate the missing sections.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRerunEvaluation}
+                    disabled={isEvaluating || deleting}
+                    className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2 rounded shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Retry Evaluation Now
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-surface-canvas border border-border-rule rounded-lg p-4 flex items-center gap-3">
+                <Clock className="w-5 h-5 text-text-muted shrink-0" />
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">Attempt Not Yet Evaluated</h3>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Candidate status is currently <span className="font-semibold uppercase">{data.attempt.status}</span>. Click "Re-run AI Evaluation" to start grading.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Section Checkpoints Grid */}
+            <div className="space-y-3">
+              <h4 className="font-headline-md text-sm font-semibold text-text-primary">
+                Evaluation Pipeline Checkpoints
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Section 1 Card */}
+                <div className="p-4 bg-surface-canvas border border-border-rule rounded-md space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-xs text-text-primary">Section 1: Blanks</span>
+                    {s1IsComplete ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#DCFCE7] text-[#15803D] border border-[#16A34A]">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Graded
+                      </span>
+                    ) : isEvaluating ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        In Progress
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-surface-card text-text-muted border border-border-rule">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    {s1DoneCount} of {s1TotalCount} vocabulary items evaluated
+                  </p>
+                </div>
+
+                {/* Section 2 Card */}
+                <div className="p-4 bg-surface-canvas border border-border-rule rounded-md space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-xs text-text-primary">Section 2: Recall</span>
+                    {s2IsComplete ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#DCFCE7] text-[#15803D] border border-[#16A34A]">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Graded
+                      </span>
+                    ) : isEvaluating ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        In Progress
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-surface-card text-text-muted border border-border-rule">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    {s2DoneCount} of {s2TotalCount} passages evaluated
+                  </p>
+                </div>
+
+                {/* Section 3 Card */}
+                <div className="p-4 bg-surface-canvas border border-border-rule rounded-md space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-xs text-text-primary">Section 3: Email</span>
+                    {s3IsComplete ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#DCFCE7] text-[#15803D] border border-[#16A34A]">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Graded
+                      </span>
+                    ) : isFailed ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-300">
+                        <AlertCircle className="w-3 h-3" />
+                        Failed
+                      </span>
+                    ) : isEvaluating ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        In Progress
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-surface-card text-text-muted border border-border-rule">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    {s3IsComplete ? 'Rubric dimensions scored' : 'Corporate rubric grading'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Candidate Raw Response Table */}
+            <div className="pt-4 border-t border-border-rule">
+              <h4 className="font-headline-md text-sm font-semibold text-text-primary mb-3">
+                Candidate Responses ({data.responses.length})
+              </h4>
+              <div className="space-y-2">
+                {data.responses.map((r, i) => {
+                  const ev = r.evaluation;
+                  return (
+                    <div
+                      key={r.response.id}
+                      className="p-3 bg-surface-canvas border border-border-rule rounded text-xs space-y-1"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-text-primary">
+                          Section {r.response.section} · Item #{i + 1}
+                        </span>
+                        {ev ? (
+                          <span className="text-[11px] font-mono text-[#15803D] font-medium">
+                            Score: {Number(ev.score).toFixed(1)} / {Number(ev.maxScore).toFixed(1)}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-text-muted font-mono italic">
+                            {isEvaluating ? 'Evaluating...' : 'Un-evaluated'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-text-muted font-mono bg-white p-2 rounded border border-border-rule">
+                        {r.response.answerText || '(No answer provided)'}
+                      </div>
+                      {ev?.aiFeedback && (
+                        <div className="text-[11px] text-text-muted">
+                          Feedback: <span className="text-text-primary">{ev.aiFeedback}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

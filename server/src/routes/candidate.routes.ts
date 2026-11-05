@@ -6,6 +6,7 @@ import * as schema from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { enqueueEvaluation } from '../queue/evaluation.queue.js';
+import { evaluateAttempt } from '../services/evaluation.service.js';
 import { buildEvaluatedAttemptPayload } from '../services/scorecard.service.js';
 import type { SaveResponseDto } from '@nqt/shared';
 
@@ -645,6 +646,9 @@ candidateRouter.put('/attempts/:id/responses', async (req, res) => {
       return;
     }
 
+    // Clean answer text (trim stray tabs, leading/trailing whitespace)
+    const cleanAnswer = typeof data.answer_text === 'string' ? data.answer_text.trim() : '';
+
     // Atomic UPSERT using unique index (attempt_id, item_id)
     const [saved] = await db
       .insert(schema.responses)
@@ -653,15 +657,17 @@ candidateRouter.put('/attempts/:id/responses', async (req, res) => {
         section: data.section,
         itemType: data.item_type,
         itemId: data.item_id,
-        answerText: data.answer_text,
+        answerText: cleanAnswer,
         timeSpentSec: data.time_spent_sec || 0,
         createdAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [schema.responses.attemptId, schema.responses.itemId],
         set: {
-          answerText: data.answer_text,
-          timeSpentSec: data.time_spent_sec || 0,
+          answerText: cleanAnswer,
+          timeSpentSec: data.time_spent_sec !== undefined && data.time_spent_sec !== null && data.time_spent_sec > 0
+            ? data.time_spent_sec
+            : schema.responses.timeSpentSec,
         },
       })
       .returning();
@@ -712,8 +718,15 @@ candidateRouter.post('/attempts/:id/submit', async (req, res) => {
       })
       .where(eq(schema.attempts.id, attemptId));
 
-    // Enqueue BullMQ evaluation job
-    await enqueueEvaluation(attemptId);
+    // Try enqueuing BullMQ evaluation job; fallback to direct background execution if queue is unavailable
+    try {
+      await enqueueEvaluation(attemptId);
+    } catch (qErr: any) {
+      console.warn('[CandidateSubmit] Failed to enqueue to BullMQ, evaluating directly in background:', qErr.message);
+      evaluateAttempt(attemptId).catch((evalErr) => {
+        console.error('[CandidateSubmit] Background evaluation failed:', evalErr);
+      });
+    }
 
     res.status(200).json({
       message: 'Exam submitted successfully.',

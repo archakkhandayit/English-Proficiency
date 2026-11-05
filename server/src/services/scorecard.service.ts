@@ -1,4 +1,4 @@
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, inArray } from 'drizzle-orm';
 import { db } from '../config/db.js';
 import * as schema from '../db/schema.js';
 import type { EvaluatedAttemptPayload } from '@nqt/shared';
@@ -63,13 +63,19 @@ export async function buildEvaluatedAttemptPayload(attemptId: string): Promise<E
     ? await db
         .select()
         .from(schema.evaluations)
+        .where(inArray(schema.evaluations.responseId, responseIds))
     : [];
 
   const evalMap = new Map<string, typeof schema.evaluations.$inferSelect>();
   for (const ev of evaluations) {
-    if (responseIds.includes(ev.responseId)) {
-      evalMap.set(ev.responseId, ev);
-    }
+    evalMap.set(ev.responseId, ev);
+  }
+
+  // A scorecard MUST NOT be constructed if responses are still pending evaluation.
+  // This prevents returning premature scorecards with 0s for un-evaluated sections.
+  const isAllEvaluated = responseIds.length > 0 && responseIds.every((id) => evalMap.has(id));
+  if (!isAllEvaluated && attempt.status !== 'evaluated') {
+    return null;
   }
 
   // Calculate timing
@@ -163,20 +169,114 @@ export async function buildEvaluatedAttemptPayload(attemptId: string): Promise<E
     },
   ];
 
-  // Composite summary
-  const compositeScore = scorecard
-    ? Number(scorecard.compositeScore)
-    : Number(((s1AccuracyPct + s2AvgRetention + s3ScorePct) / 3).toFixed(2));
+  // Composite summary (Computed directly from section metrics for 100% consistency)
+  const compositeScore = Number(((s1AccuracyPct + s2AvgRetention + s3ScorePct) / 3).toFixed(2));
 
-  let proficiencyBand = scorecard?.proficiencyBand;
-  if (!proficiencyBand) {
-    if (compositeScore >= 85) proficiencyBand = 'Exemplary';
-    else if (compositeScore >= 70) proficiencyBand = 'Proficient';
-    else if (compositeScore >= 50) proficiencyBand = 'Developing';
-    else proficiencyBand = 'Needs Improvement';
+  let proficiencyBand = 'Needs Improvement';
+  if (compositeScore >= 85) proficiencyBand = 'Exemplary';
+  else if (compositeScore >= 70) proficiencyBand = 'Proficient';
+  else if (compositeScore >= 50) proficiencyBand = 'Developing';
+
+  const benchmarkMet = compositeScore >= 60.0;
+
+  // Auto-heal attempt status if all responses have evaluations
+  if (isAllEvaluated && attempt.status !== 'evaluated') {
+    await db
+      .update(schema.attempts)
+      .set({
+        status: 'evaluated',
+        evaluatedAt: attempt.evaluatedAt || new Date(),
+        errorMessage: null,
+      })
+      .where(eq(schema.attempts.id, attempt.id));
+    attempt.status = 'evaluated';
   }
 
-  const benchmarkMet = scorecard?.benchmarkMet ?? (compositeScore >= 60.0);
+  const summaryMatrices = {
+    composite: { score: compositeScore, scale: 100, band: proficiencyBand, benchmark_met: benchmarkMet },
+    section1: {
+      title: 'Sentence Completion',
+      total_questions: s1Total,
+      accepted: s1Accepted,
+      rejected: s1Total - s1Accepted,
+      accuracy_pct: s1AccuracyPct,
+      questions: s1Items.map((item) => ({
+        order_index: item.order_index,
+        sentence_with_blank: item.sentence,
+        acceptable_answers: item.acceptable_answers,
+        candidate_answer: item.candidate_answer,
+        is_accepted: item.verdict === 'accepted',
+        score: item.score,
+        ai_feedback: item.feedback,
+        match_type: item.match_type,
+      })),
+    },
+    section2: {
+      title: 'Passage Recall',
+      total_passages: s2Count,
+      avg_retention_pct: s2AvgRetention,
+      passages: s2Items.map((item) => ({
+        order_index: item.order_index,
+        passage_text: item.stimulus_passage,
+        candidate_answer: item.recalled_text,
+        recalled_text: item.recalled_text,
+        score: item.retention_percentage,
+        ai_feedback: item.analysis_summary,
+        retained: item.key_concepts_retained,
+        missed: item.key_concepts_missed,
+        distortions: item.distortions,
+      })),
+    },
+    section3: {
+      title: 'Professional Email Writing',
+      score_pct: s3ScorePct,
+      word_count: s3WordCount,
+      word_compliance: s3Compliance,
+      prompt_text: s3Prompt?.promptText || '',
+      email_text: s3Response?.answerText || '',
+      raw_rubric_total: s3RawTotal,
+      raw_rubric_max: s3RawMax,
+      rubric: s3Rubric,
+    },
+  };
+
+  // Keep attempt_scorecards record aligned with computed metrics
+  if (isAllEvaluated) {
+    await db
+      .insert(schema.attemptScorecards)
+      .values({
+        attemptId: attempt.id,
+        compositeScore: compositeScore.toFixed(2),
+        proficiencyBand,
+        benchmarkMet,
+        section1Total: s1Total,
+        section1Accepted: s1Accepted,
+        section1AccuracyPct: s1AccuracyPct.toFixed(2),
+        section2PassagesCount: s2Count,
+        section2AvgRetention: s2AvgRetention.toFixed(2),
+        section3ScorePct: s3ScorePct.toFixed(2),
+        section3WordCount: s3WordCount,
+        summaryMatrices,
+        generatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: schema.attemptScorecards.attemptId,
+        set: {
+          compositeScore: compositeScore.toFixed(2),
+          proficiencyBand,
+          benchmarkMet,
+          section1Total: s1Total,
+          section1Accepted: s1Accepted,
+          section1AccuracyPct: s1AccuracyPct.toFixed(2),
+          section2PassagesCount: s2Count,
+          section2AvgRetention: s2AvgRetention.toFixed(2),
+          section3ScorePct: s3ScorePct.toFixed(2),
+          section3WordCount: s3WordCount,
+          summaryMatrices,
+          generatedAt: new Date(),
+        },
+      });
+  }
 
   const payload: EvaluatedAttemptPayload = {
     attempt_id: attempt.id,
@@ -236,12 +336,7 @@ export async function buildEvaluatedAttemptPayload(attemptId: string): Promise<E
     section2_avg_retention: s2AvgRetention,
     section3_score_pct: s3ScorePct,
     section3_word_count: s3WordCount,
-    summary_matrices: scorecard?.summaryMatrices || {
-      composite: { score: compositeScore, scale: 100, band: proficiencyBand, benchmark_met: benchmarkMet },
-      section1: { title: 'Sentence Completion', total_questions: s1Total, accepted: s1Accepted, rejected: s1Total - s1Accepted, accuracy_pct: s1AccuracyPct, questions: s1Items },
-      section2: { title: 'Passage Recall', total_passages: s2Count, avg_retention_pct: s2AvgRetention, passages: s2Items },
-      section3: { title: 'Professional Email Writing', score_pct: s3ScorePct, word_count: s3WordCount, word_compliance: s3Compliance, prompt_text: s3Prompt?.promptText, email_text: s3Response?.answerText, raw_rubric_total: s3RawTotal, raw_rubric_max: s3RawMax, rubric: s3Rubric },
-    },
+    summary_matrices: summaryMatrices,
     generated_at: scorecard?.generatedAt || attempt.evaluatedAt || new Date(),
   };
 
