@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
 import { handleTabInsert } from '../../utils/textUtils';
-import type { ExamStatus } from '@nqt/shared';
+import type { ExamStatus } from '@aptivo/shared';
 
 interface Section1Item {
   id?: string;

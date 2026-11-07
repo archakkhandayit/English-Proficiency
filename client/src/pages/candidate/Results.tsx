@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { Scorecard } from '../../components/Scorecard';
-import type { AttemptScorecard } from '@nqt/shared';
+import type { AttemptScorecard } from '@aptivo/shared';
 
 export const Results: React.FC = () => {
   const { id: examId } = useParams<{ id: string }>();
@@ -23,18 +23,18 @@ export const Results: React.FC = () => {
       try {
         let scData: AttemptScorecard | null = null;
         // 1. Try fetching directly as attempt ID
-        try {
-          const res = await api.get<AttemptScorecard>(
-            `/candidate/attempts/${examId}/scorecard`
-          );
-          scData = res.data;
-        } catch {
+        // try {
+        //   const res = await api.get<AttemptScorecard>(
+        //     `/candidate/attempts/${examId}/scorecard`
+        //   );
+        //   scData = res.data;
+        // } catch {
           // 2. If not an attempt ID, fetch as exam ID
           const res = await api.get<AttemptScorecard>(
             `/candidate/exams/${examId}/scorecard`
           );
           scData = res.data;
-        }
+        // }
 
         if (isMounted) {
           setScorecard(scData);

@@ -4,7 +4,7 @@ import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
 import { Scorecard } from '../../components/Scorecard';
 import { Loader2, CheckCircle2, AlertCircle, Clock, RefreshCw } from 'lucide-react';
-import type { AttemptScorecard, AttemptStatus } from '@nqt/shared';
+import type { AttemptScorecard, AttemptStatus } from '@aptivo/shared';
 
 interface ResponseWithEvaluation {
   response: {

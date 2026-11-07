@@ -6,7 +6,7 @@ import { db } from '../config/db.js';
 import * as schema from '../db/schema.js';
 import { AuthService } from '../services/auth.service.js';
 import { requireAuth } from '../middleware/auth.js';
-import type { AuthUser, JwtPayload } from '@nqt/shared';
+import type { AuthUser, JwtPayload } from '@aptivo/shared';
 
 export const authRouter = Router();
 

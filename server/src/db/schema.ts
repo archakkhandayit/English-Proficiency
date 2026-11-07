@@ -1,6 +1,6 @@
 import { pgTable, uuid, text, boolean, integer, smallint, numeric, timestamp, jsonb, pgEnum, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import type { ScorecardMatrices } from '@nqt/shared';
+import type { ScorecardMatrices } from '@aptivo/shared';
 
 // Enums
 export const userRoleEnum = pgEnum('user_role', ['candidate', 'admin']);

@@ -5,7 +5,7 @@ import { CandidateNavbar } from '../../components/CandidateNavbar';
 import { ExamTimer } from '../../components/ExamTimer';
 import { useExamNavigationGuard } from '../../hooks/useExamNavigationGuard';
 import { Loader2 } from 'lucide-react';
-import type { Attempt } from '@nqt/shared';
+import type { Attempt } from '@aptivo/shared';
 
 interface PassageReadData {
   id: string;

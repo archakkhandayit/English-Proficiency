@@ -8,7 +8,7 @@ import { requireRole } from '../middleware/rbac.js';
 import { enqueueEvaluation } from '../queue/evaluation.queue.js';
 import { evaluateAttempt } from '../services/evaluation.service.js';
 import { buildEvaluatedAttemptPayload } from '../services/scorecard.service.js';
-import type { SaveResponseDto } from '@nqt/shared';
+import type { SaveResponseDto } from '@aptivo/shared';
 
 export const candidateRouter = Router();
 

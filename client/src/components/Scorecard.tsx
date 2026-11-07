@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AttemptScorecard, EvaluatedAttemptPayload } from '@nqt/shared';
+import type { AttemptScorecard, EvaluatedAttemptPayload } from '@aptivo/shared';
 
 interface ScorecardProps {
   scorecard: AttemptScorecard | EvaluatedAttemptPayload | any;

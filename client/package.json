@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@nqt/shared": "*",
+    "@aptivo/shared": "*",
     "@tanstack/react-query": "^5.66.0",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",

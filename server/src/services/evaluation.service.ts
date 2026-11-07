@@ -2,7 +2,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '../config/db.js';
 import { env } from '../config/env.js';
 import * as schema from '../db/schema.js';
-import type { ScorecardMatrices, RubricDimension } from '@nqt/shared';
+import type { ScorecardMatrices, RubricDimension } from '@aptivo/shared';
 
 const MODEL_NAME = env.GEMINI_MODEL;
 

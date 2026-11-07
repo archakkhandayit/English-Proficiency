@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { CandidateNavbar } from '../../components/CandidateNavbar';
 import { Loader2 } from 'lucide-react';
-import type { Exam } from '@nqt/shared';
+import type { Exam } from '@aptivo/shared';
 
 export const ExamInstructions: React.FC = () => {
   const { id } = useParams<{ id: string }>();

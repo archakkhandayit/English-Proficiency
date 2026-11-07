@@ -4,7 +4,7 @@ import { api } from '../../api/axios';
 import { CandidateNavbar } from '../../components/CandidateNavbar';
 import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, Clock, ArrowRight, Home } from 'lucide-react';
-import type { Attempt } from '@nqt/shared';
+import type { Attempt } from '@aptivo/shared';
 
 export const EvaluationWait: React.FC = () => {
   const { id: examId } = useParams<{ id: string }>();

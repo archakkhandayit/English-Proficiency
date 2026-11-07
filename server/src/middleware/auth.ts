@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
-import type { JwtPayload } from '@nqt/shared';
+import type { JwtPayload } from '@aptivo/shared';
 
 // Extend Express Request interface to hold authenticated user
 declare global {

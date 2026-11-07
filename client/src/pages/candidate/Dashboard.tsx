@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { CandidateNavbar } from '../../components/CandidateNavbar';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import type { AttemptStatus } from '@nqt/shared';
+import type { AttemptStatus } from '@aptivo/shared';
 
 interface ExamItem {
   id: string;

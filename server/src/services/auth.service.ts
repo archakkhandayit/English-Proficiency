@@ -6,7 +6,7 @@ import type { Response } from 'express';
 import { db } from '../config/db.js';
 import { env } from '../config/env.js';
 import * as schema from '../db/schema.js';
-import type { AuthUser, JwtPayload, UserRole } from '@nqt/shared';
+import type { AuthUser, JwtPayload, UserRole } from '@aptivo/shared';
 
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;

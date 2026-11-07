@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Attempt } from '@nqt/shared';
+import type { Attempt } from '@aptivo/shared';
 
 interface UseExamNavigationGuardOptions {
   examId?: string;

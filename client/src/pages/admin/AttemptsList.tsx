@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
-import type { AttemptStatus } from '@nqt/shared';
+import type { AttemptStatus } from '@aptivo/shared';
 
 interface AdminAttemptItem {
   id: string;

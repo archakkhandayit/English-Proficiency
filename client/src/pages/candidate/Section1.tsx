@@ -6,7 +6,7 @@ import { ExamTimer } from '../../components/ExamTimer';
 import { useExamNavigationGuard } from '../../hooks/useExamNavigationGuard';
 import { handleTabInsert } from '../../utils/textUtils';
 import { Loader2 } from 'lucide-react';
-import type { Section1Question, ExamResponse, Attempt } from '@nqt/shared';
+import type { Section1Question, ExamResponse, Attempt } from '@aptivo/shared';
 
 export const Section1: React.FC = () => {
   const { id: examId } = useParams<{ id: string }>();

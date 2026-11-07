@@ -7,7 +7,7 @@ import { useExamSession, type Section2BatchData } from '../../context/ExamSessio
 import { useExamNavigationGuard } from '../../hooks/useExamNavigationGuard';
 import { handleTabInsert } from '../../utils/textUtils';
 import { Loader2 } from 'lucide-react';
-import type { Attempt } from '@nqt/shared';
+import type { Attempt } from '@aptivo/shared';
 
 export const Section2: React.FC = () => {
   const { id: examId } = useParams<{ id: string }>();

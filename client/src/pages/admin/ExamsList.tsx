@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axios';
 import { AdminNavbar, AdminFooter } from '../../components/AdminNavbar';
-import type { ExamStatus } from '@nqt/shared';
+import type { ExamStatus } from '@aptivo/shared';
 
 interface AdminExamItem {
   id: string;

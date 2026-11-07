@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
 import { api } from '../api/axios';
-import type { Attempt, Section3Prompt } from '@nqt/shared';
+import type { Attempt, Section3Prompt } from '@aptivo/shared';
 
 export interface Section2PassageItem {
   id: string;

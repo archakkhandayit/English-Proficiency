@@ -6,7 +6,7 @@ import { ExamTimer } from '../../components/ExamTimer';
 import { useExamNavigationGuard } from '../../hooks/useExamNavigationGuard';
 import { handleTabInsert } from '../../utils/textUtils';
 import { Loader2 } from 'lucide-react';
-import type { Attempt } from '@nqt/shared';
+import type { Attempt } from '@aptivo/shared';
 
 interface PassageMeta {
   id: string;

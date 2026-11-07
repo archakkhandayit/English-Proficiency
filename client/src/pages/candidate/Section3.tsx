@@ -7,7 +7,7 @@ import { useExamSession } from '../../context/ExamSessionContext';
 import { useExamNavigationGuard } from '../../hooks/useExamNavigationGuard';
 import { handleTabInsert } from '../../utils/textUtils';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import type { Attempt, Section3Prompt } from '@nqt/shared';
+import type { Attempt, Section3Prompt } from '@aptivo/shared';
 
 export const Section3: React.FC = () => {
   const { id: examId } = useParams<{ id: string }>();

@@ -1,7 +1,7 @@
 import { eq, asc, inArray } from 'drizzle-orm';
 import { db } from '../config/db.js';
 import * as schema from '../db/schema.js';
-import type { EvaluatedAttemptPayload } from '@nqt/shared';
+import type { EvaluatedAttemptPayload } from '@aptivo/shared';
 
 export async function buildEvaluatedAttemptPayload(attemptId: string): Promise<EvaluatedAttemptPayload | null> {
   // 1. Fetch attempt
